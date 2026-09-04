@@ -249,6 +249,7 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 }
 #print-report-title{display:none;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -276,7 +277,7 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
       <button class="btn-secondary" onclick="exportJSON()">⬇️ Exportar JSON</button>
       <button class="btn-secondary" onclick="document.getElementById('import-file').click()">⬆️ Importar JSON</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
-      <button class="btn-primary" onclick="window.print()">🖨️ Exportar PDF</button>
+      <button class="btn-primary" onclick="exportPDFReport()">🖨️ Exportar PDF</button>
     </div>
   </header>
 
@@ -749,6 +750,87 @@ async function exportJSON(){
     return;
   }
   const blob = new Blob([json], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportPDFReport(){
+  // window.print() is blocked silently inside a sandboxed viewer (no allow-modals),
+  // so build a real PDF client-side when the library loaded; otherwise fall back to print.
+  if(typeof window.jspdf === "undefined"){
+    window.print();
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit:"pt", format:"a4" });
+  const marginX = 40;
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const maxWidth = pageWidth - marginX*2;
+  let y = 54;
+
+  function ensureSpace(nLines, lineHeight){
+    if(y + nLines*lineHeight > pageHeight - 40){
+      pdf.addPage();
+      y = 54;
+    }
+  }
+  function writeLines(text, {size=10, bold=false, indent=0, gapAfter=4}={}){
+    pdf.setFontSize(size);
+    pdf.setFont(undefined, bold?"bold":"normal");
+    const lines = pdf.splitTextToSize(text, maxWidth - indent);
+    const lineHeight = size*1.3;
+    ensureSpace(lines.length, lineHeight);
+    pdf.text(lines, marginX+indent, y);
+    y += lines.length*lineHeight + gapAfter;
+  }
+
+  const scope = activePhaseId==='all'
+    ? "Todas las fases"
+    : (STATE.phases.find(p=>p.id===activePhaseId)||{}).title || "";
+
+  writeLines("ASFA Digital @ Vectron", {size:18, bold:true, gapAfter:6});
+  writeLines("Informe documental de integración y homologación — "+scope, {size:11, gapAfter:2});
+  writeLines("Generado: "+new Date().toLocaleString('es-ES'), {size:9, gapAfter:16});
+
+  let entries = allDocs();
+  if(activePhaseId!=='all') entries = entries.filter(e=>e.phase.id===activePhaseId);
+
+  let lastPhaseId = null;
+  entries.forEach(({phase, doc:d})=>{
+    if(phase.id!==lastPhaseId){
+      y += 6;
+      writeLines(phase.name+" — "+phase.title, {size:13, bold:true, gapAfter:8});
+      lastPhaseId = phase.id;
+    }
+    writeLines("• "+d.name, {size:10, bold:true, gapAfter:2});
+    const norms = d.norms.map(code => (NORMS[code]||{}).short).filter(Boolean).join(", ");
+    writeLines(
+      "Estado: "+d.status+"   ·   Responsable: "+(d.responsible||"—")+"   ·   Fecha límite: "+(d.deadline||"—")+(norms?"   ·   Normativa: "+norms:""),
+      {size:9, indent:12, gapAfter:2}
+    );
+    if(d.notes) writeLines("Notas: "+d.notes, {size:9, indent:12, gapAfter:2});
+    y += 6;
+  });
+
+  const filename = "asfa-vectron-informe-"+new Date().toISOString().slice(0,10)+".pdf";
+  const blob = pdf.output("blob");
+
+  const downloads = window.claude ? await claude.use("downloads").catch(()=>null) : null;
+  if(downloads){
+    try{
+      await downloads.save({ filename, data: blob });
+    }catch(err){
+      if(err && err.code !== "declined") alert("No se pudo guardar el PDF: "+(err.message||err.code));
+    }
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
