@@ -374,6 +374,10 @@ const NORMS = {
   EN50121:{ short:"EN 50121", full:"EN 50121 — Electromagnetic compatibility in railway applications", url:"https://www.era.europa.eu" },
   GUIA:   { short:"AESF Guide O-02.02-02", full:"AESF Guide O-02.02-02-GU-01 — Classification of vehicle and subsystem modifications", url:"https://www.seguridadferroviaria.es" },
   OSS:    { short:"ERA OSS", full:"European Union Agency for Railways One-Stop Shop (OSS) — Single window for vehicle authorisation applications", url:"https://www.era.europa.eu" },
+  NT022022: { short:"AESF NT-02/2022", full:"AESF Technical Note 2/2022 — Categorisation criteria for vehicle modifications based on changes to onboard ASFA equipment", url:"https://www.seguridadferroviaria.es/recursos_aesf/20220704_nt-02-2022-actualizacion_asfad_web.pdf" },
+  RT32024: { short:"AESF RT 3/2024", full:"AESF Technical Recommendation 3/2024 — ASFA system update migration calendar (target version ASFA V4.2)", url:"https://www.seguridadferroviaria.es/recursos_aesf/rec_tec_3-2024_migracion_asfa_version_2_web.pdf" },
+  ETCASFA: { short:"ETC ETCS-ASFA (FN-27)", full:"National Complementary Technical Specification (ETC) — Safe management of nominal ETCS↔ASFA transitions with the vehicle in motion (Function FN-27), per Resolution 3/2019 as updated by Resolution 4/2024", url:"https://www.seguridadferroviaria.es/recursos_aesf/20190603_etc_transiciones_etcs-asfa.pdf" },
+  FORMMOD: { short:"AESF Modification Form", full:"AESF Modification Notification Form (Formulario de modificaciones v1_r3) with Annex 6 technical documentation, per Guide O-02.02-02-GU-01", url:"https://cdn.transportes.gob.es/portal-web-sede/documentos/Formulario_modificaciones_v1_r3.pdf" },
 };
 
 /* ============================================================
@@ -408,6 +412,8 @@ let STATE = {
         d("Study of ETH Locomotives (Resolution of 10/07/2009 + ASFA Digital update of 10/05/2017)", ["ETH"]),
         d("Integrator project plan with milestones and documentary deliverables", []),
         d("Regulatory traceability matrix (ADIF ET requirements vs. technical solution)", ["ET036","IFMR"]),
+        d("Review of AESF Technical Note NT-02/2022 to determine the categorisation of the onboard ASFA equipment modification", ["NT022022"]),
+        d("Confirmation of the target ASFA software version against the AESF migration calendar (Technical Recommendation 3/2024, target ASFA V4.2)", ["RT32024"]),
       ]
     },
     {
@@ -421,6 +427,7 @@ let STATE = {
         d("Interface document with the driving system (DMI / driver's cab)", ["ET036"]),
         d("Interface with the emergency braking system (safety loop / brake train)", ["ET036"]),
         d("Interface with the event recorder (DIV — Vehicle Integrity Device)", ["ET036"]),
+        d("Interface specification for ETCS↔ASFA Digital transition logic (Levels 0/1/2, Function FN-27) — applicable when the locomotive also carries ETCS", ["ETCASFA"]),
         d("Preliminary Electromagnetic Compatibility (EMC) analysis", ["EN50121"]),
         d("Impact assessment on the existing type authorisation (modification classification per AESF Guide O-02.02-02-GU-01)", ["GUIA"]),
         d("Modification risk assessment (CSM-RA / Regulation (EU) 402/2013), if applicable", ["CSMRA"]),
@@ -437,6 +444,7 @@ let STATE = {
         d("Braking system interface verification report", ["ET036"]),
         d("Event recorder (DIV) interface verification report", ["ET036"]),
         d("DMI / cab interface verification report", ["ET036"]),
+        d("Workshop functional verification report for the ETCS↔ASFA transition logic (Function FN-27)", ["ETCASFA"]),
         d("System acceptance record after workshop trials (integrator + ASFA manufacturer)", []),
         d("Onboard equipment software configuration record (SW version, checksum, parameters)", ["ET036"]),
       ]
@@ -450,6 +458,7 @@ let STATE = {
         d("Safety operating procedure for track testing", ["IFMR"]),
         d("Qualification of driving staff for testing (authorised drivers)", []),
         d("Track test reports with ASFA Digital balises (reception and response verification)", ["ET036","NAS154"]),
+        d("Dynamic ETCS↔ASFA transition test record with the vehicle in motion (Function FN-27)", ["ETCASFA"]),
         d("Compatibility test report with track circuits installed on the RFIG (Annex L — IF MR ALC-20)", ["IFMR"]),
         d("Final validation run record (AESF Technical Recommendation 4/2020)", ["RT42020"]),
         d("Recorder (DIV) data analysis report during track testing", []),
@@ -461,6 +470,7 @@ let STATE = {
       objective:"Prepare and submit the modification's authorisation file.",
       docs:[
         d("Complete technical file for the modification (Technical File)", ["UE2018545"]),
+        d("AESF modification notification form with technical annexes, per Guide O-02.02-02-GU-01", ["FORMMOD","GUIA"]),
         d('Verification declaration for the "Onboard Control-Command and Signalling" subsystem (DoV CCS OB)', ["ETILOC"]),
         d("Report from the Notified Body (NoBo) or Designated Body (DeBo), if applicable", ["ETILOC"]),
         d("Safety Assessment Report (CSM-RA), if the modification is significant to safety", ["CSMRA"]),
