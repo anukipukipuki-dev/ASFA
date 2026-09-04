@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASFA Digital @ Vectron — Gestión Documental</title>
+<style>
+:root{
+  --bg:#0D1B2A;
+  --sidebar:#111E2E;
+  --sidebar-border:#1E3048;
+  --card:#162236;
+  --accent:#F5C518;
+  --text:#E8EDF2;
+  --text-secondary:#7A92A8;
+  --pendiente:#6B7A8D;
+  --elaboracion:#3D8BCD;
+  --revision:#F0A500;
+  --completado:#27AE60;
+  --bloqueado:#E74C3C;
+  --noaplica:#4A5568;
+  --radius:8px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter','Roboto',system-ui,-apple-system,Segoe UI,sans-serif;
+  min-width:1280px;
+  font-size:14px;
+  line-height:1.5;
+}
+a{color:var(--accent);}
+button{
+  font-family:inherit;
+  cursor:pointer;
+  border:none;
+  border-radius:6px;
+  font-size:13px;
+  padding:8px 14px;
+  transition:filter .15s ease;
+}
+button:hover{filter:brightness(1.12);}
+button.btn-primary{background:var(--accent);color:#1a1200;font-weight:600;}
+button.btn-secondary{background:#1E3048;color:var(--text);}
+button.btn-secondary:hover{background:#274162;}
+input,select,textarea{
+  font-family:inherit;
+  background:#0F1A28;
+  color:var(--text);
+  border:1px solid #24384f;
+  border-radius:6px;
+  padding:6px 8px;
+  font-size:13px;
+}
+input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);}
+
+/* ===== Splash ===== */
+#splash{
+  position:fixed;inset:0;background:var(--bg);z-index:999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;transition:opacity .5s ease;
+}
+#splash h1{
+  font-size:34px;color:var(--accent);margin:0 0 8px 0;letter-spacing:.5px;
+}
+#splash p{color:var(--text-secondary);margin:0 0 28px 0;font-size:15px;max-width:640px;}
+#splash .rail{
+  width:120px;height:4px;background:linear-gradient(90deg,var(--completado),var(--accent));
+  border-radius:2px;margin-bottom:28px;
+}
+#splash button{padding:12px 28px;font-size:14px;}
+
+/* ===== Layout ===== */
+#app{display:none;height:100vh;flex-direction:column;}
+header#topbar{
+  background:var(--sidebar);
+  border-bottom:1px solid var(--sidebar-border);
+  padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:20px;
+}
+header#topbar .brand{display:flex;align-items:center;gap:12px;}
+header#topbar .brand .logo{
+  width:38px;height:38px;border-radius:8px;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+header#topbar .brand h1{font-size:16px;margin:0;color:var(--text);}
+header#topbar .brand span{font-size:11px;color:var(--text-secondary);}
+header#topbar .actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+#kpibar{
+  display:flex;gap:12px;padding:14px 24px;background:#0F1D2C;
+  border-bottom:1px solid var(--sidebar-border);
+  overflow-x:auto;
+}
+.kpi{
+  background:var(--card);border:1px solid var(--sidebar-border);border-radius:var(--radius);
+  padding:10px 16px;min-width:150px;flex-shrink:0;
+}
+.kpi .kpi-label{font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;}
+.kpi .kpi-value{font-size:22px;font-weight:700;margin-top:2px;}
+.kpi.total .kpi-value{color:var(--text);}
+.kpi.completado .kpi-value{color:var(--completado);}
+.kpi.progreso .kpi-value{color:var(--elaboracion);}
+.kpi.pendiente .kpi-value{color:var(--pendiente);}
+.kpi.bloqueado .kpi-value{color:var(--bloqueado);}
+.kpi.global{flex:1;min-width:220px;}
+.kpi.global .progress-outer{
+  background:#0A1420;border-radius:20px;height:14px;overflow:hidden;margin-top:8px;border:1px solid var(--sidebar-border);
+}
+.kpi.global .progress-inner{
+  height:100%;background:linear-gradient(90deg,var(--completado),var(--accent));
+  transition:width .4s ease;border-radius:20px;
+}
+.kpi.meta{font-size:11px;color:var(--text-secondary);}
+.kpi.meta .kpi-value{font-size:13px;font-weight:600;color:var(--text);}
+
+#body-layout{flex:1;display:flex;overflow:hidden;}
+
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--sidebar);
+  border-right:1px solid var(--sidebar-border);
+  overflow-y:auto;padding:14px 0;
+}
+nav#sidebar h3{
+  font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);
+  padding:0 16px;margin:6px 0 10px 0;
+}
+.phase-item{
+  padding:12px 16px;margin:0 8px 6px 8px;border-radius:8px;cursor:pointer;
+  border-left:3px solid transparent;
+}
+.phase-item:hover{background:#182740;}
+.phase-item.active{background:#1C2E48;border-left-color:var(--accent);}
+.phase-item .phase-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
+.phase-item .phase-title .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.phase-item .phase-sub{font-size:11px;color:var(--text-secondary);margin-top:4px;margin-left:17px;}
+.phase-item .phase-bar-outer{
+  height:5px;background:#0A1420;border-radius:4px;margin-top:6px;margin-left:17px;overflow:hidden;
+}
+.phase-item .phase-bar-inner{height:100%;background:var(--accent);}
+
+#activitylog{margin-top:10px;padding:0 16px;}
+#activitylog h3{padding:0;}
+.log-entry{
+  font-size:11px;color:var(--text-secondary);padding:6px 0;border-bottom:1px solid var(--sidebar-border);
+}
+.log-entry b{color:var(--text);}
+.log-empty{font-size:11px;color:var(--text-secondary);font-style:italic;padding:6px 0;}
+
+main#content{flex:1;overflow-y:auto;padding:20px 24px;}
+
+#toolbar{
+  display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--sidebar-border);border-radius:var(--radius);padding:12px;
+}
+#toolbar input[type=text]{width:260px;}
+#toolbar .spacer{flex:1;}
+#toolbar .view-toggle button{background:#1E3048;color:var(--text-secondary);}
+#toolbar .view-toggle button.active{background:var(--accent);color:#1a1200;}
+
+#phase-header{margin-bottom:14px;}
+#phase-header h2{margin:0 0 4px 0;font-size:19px;color:var(--accent);}
+#phase-header p{margin:0;color:var(--text-secondary);font-size:13px;max-width:900px;}
+
+#doc-list{display:flex;flex-direction:column;gap:10px;}
+.doc-card{
+  background:var(--card);border:1px solid var(--sidebar-border);border-radius:var(--radius);
+  border-left:5px solid var(--pendiente);
+  padding:14px 16px;
+}
+.doc-card.status-completado{border-left-color:var(--completado);}
+.doc-card.status-en-elaboracion{border-left-color:var(--elaboracion);}
+.doc-card.status-en-revision{border-left-color:var(--revision);}
+.doc-card.status-bloqueado{border-left-color:var(--bloqueado);}
+.doc-card.status-no-aplica{border-left-color:var(--noaplica);opacity:.7;}
+.doc-card.status-pendiente{border-left-color:var(--pendiente);}
+
+.doc-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.doc-name{font-size:14px;font-weight:600;color:var(--text);flex:1;}
+.doc-icon{margin-right:6px;}
+.doc-fields{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;}
+.doc-field{display:flex;flex-direction:column;gap:3px;}
+.doc-field label{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;}
+.doc-field select, .doc-field input[type=text], .doc-field input[type=date]{min-width:150px;}
+.doc-field.notes{flex:1;min-width:220px;}
+.doc-field.notes textarea{width:100%;min-height:34px;resize:vertical;font-size:12px;}
+
+.norm-badge{
+  display:inline-block;background:#0F1D2C;border:1px solid #274162;color:var(--accent);
+  font-size:11px;padding:3px 8px;border-radius:20px;cursor:help;position:relative;margin-top:8px;
+}
+.norm-badge:hover .tooltip{display:block;}
+.tooltip{
+  display:none;position:absolute;bottom:120%;left:0;background:#04101c;border:1px solid var(--accent);
+  color:var(--text);padding:8px 10px;border-radius:6px;font-size:11px;width:280px;z-index:50;
+  box-shadow:0 6px 18px rgba(0,0,0,.5);
+}
+
+.status-pill{
+  font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;
+}
+.status-pill.status-pendiente{background:rgba(107,122,141,.2);color:var(--pendiente);}
+.status-pill.status-en-elaboracion{background:rgba(61,139,205,.2);color:var(--elaboracion);}
+.status-pill.status-en-revision{background:rgba(240,165,0,.2);color:var(--revision);}
+.status-pill.status-completado{background:rgba(39,174,96,.2);color:var(--completado);}
+.status-pill.status-bloqueado{background:rgba(231,76,60,.2);color:var(--bloqueado);}
+.status-pill.status-no-aplica{background:rgba(74,85,104,.2);color:#9AA5B1;}
+
+.empty-state{
+  text-align:center;padding:60px 20px;color:var(--text-secondary);
+}
+
+/* ===== Modals ===== */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+  align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--sidebar);border:1px solid var(--sidebar-border);border-radius:12px;
+  max-width:720px;width:90%;max-height:80vh;overflow-y:auto;padding:24px;
+}
+.modal-box h2{margin-top:0;color:var(--accent);font-size:19px;}
+.modal-box h3{font-size:14px;color:var(--text);margin-top:20px;}
+.modal-box table{width:100%;border-collapse:collapse;margin-top:10px;}
+.modal-box td,.modal-box th{padding:8px;border-bottom:1px solid var(--sidebar-border);font-size:12px;text-align:left;vertical-align:top;}
+.modal-close{float:right;background:#1E3048;color:var(--text);width:28px;height:28px;border-radius:6px;padding:0;}
+.status-legend{display:flex;gap:8px;align-items:center;margin:6px 0;}
+.status-legend .dot{width:10px;height:10px;border-radius:50%;}
+
+/* ===== Print ===== */
+@media print{
+  #splash,header#topbar,#kpibar,nav#sidebar,#toolbar,.modal-overlay,.doc-field select,.no-print{display:none !important;}
+  body{background:#fff;color:#000;min-width:0;}
+  #body-layout{display:block;}
+  main#content{overflow:visible;padding:0;}
+  .doc-card{background:#fff;border:1px solid #999;border-left-width:5px;color:#000;break-inside:avoid;}
+  .doc-name{color:#000;}
+  .status-pill{border:1px solid #999;}
+  #phase-header h2{color:#000;}
+  #print-report-title{display:block !important;font-size:20px;margin-bottom:16px;}
+}
+#print-report-title{display:none;}
+</style>
+</head>
+<body>
+
+<!-- ===== SPLASH ===== -->
+<div id="splash">
+  <div class="rail"></div>
+  <h1>ASFA Digital @ Vectron</h1>
+  <p>Gestión Documental de Integración y Homologación — Panel de control del equipo integrador para la puesta en servicio del sistema ASFA Digital embarcado en la locomotora Vectron sobre la Red Ferroviaria de Interés General.</p>
+  <button class="btn-primary" onclick="closeSplash()">Entrar al panel →</button>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <div class="logo">🚆</div>
+      <div>
+        <h1>ASFA Digital @ Vectron</h1>
+        <span>Gestión Documental de Integración y Homologación</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-secondary" onclick="openModal('help-modal')">❓ Ayuda</button>
+      <button class="btn-secondary" onclick="openModal('norm-modal')">📚 Normativa</button>
+      <button class="btn-secondary" onclick="exportJSON()">⬇️ Exportar JSON</button>
+      <button class="btn-secondary" onclick="document.getElementById('import-file').click()">⬆️ Importar JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+      <button class="btn-primary" onclick="window.print()">🖨️ Exportar PDF</button>
+    </div>
+  </header>
+
+  <section id="kpibar"></section>
+
+  <div id="body-layout">
+    <nav id="sidebar">
+      <h3>Fases del proyecto</h3>
+      <div id="phase-nav"></div>
+      <div id="activitylog">
+        <h3>Registro de actividad</h3>
+        <div id="log-list"></div>
+      </div>
+    </nav>
+
+    <main id="content">
+      <div id="print-report-title"></div>
+      <div id="toolbar" class="no-print">
+        <input type="text" id="search-input" placeholder="🔎 Buscar documento..." oninput="render()">
+        <select id="filter-status" onchange="render()">
+          <option value="">Todos los estados</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="En Elaboración">En Elaboración</option>
+          <option value="En Revisión">En Revisión</option>
+          <option value="Completado">Completado</option>
+          <option value="Bloqueado">Bloqueado</option>
+          <option value="No aplica">No aplica</option>
+        </select>
+        <div class="view-toggle" id="view-toggle">
+          <button class="active" data-view="all" onclick="setView('all')">Todos</button>
+          <button data-view="pendiente" onclick="setView('pendiente')">Solo pendientes</button>
+          <button data-view="bloqueado" onclick="setView('bloqueado')">Solo bloqueados</button>
+          <button data-view="completado" onclick="setView('completado')">Solo completados</button>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn-secondary" onclick="selectAllPhases()">Ver todas las fases</button>
+      </div>
+
+      <div id="phase-header"></div>
+      <div id="doc-list"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ===== HELP MODAL ===== -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('help-modal')">✕</button>
+    <h2>❓ Cómo usar este panel</h2>
+    <p>Esta herramienta permite al <b>equipo integrador</b> hacer seguimiento de toda la documentación necesaria para integrar el sistema ASFA Digital embarcado en una locomotora Vectron y obtener su autorización de puesta en servicio en España.</p>
+    <h3>Flujo del proyecto</h3>
+    <table>
+      <tr><td><b>Fase 0</b></td><td>Análisis de partida y planificación: línea base técnica y normativa.</td></tr>
+      <tr><td><b>Fase 1</b></td><td>Diseño del sistema y documentación técnica de la integración a bordo.</td></tr>
+      <tr><td><b>Fase 2</b></td><td>Verificación y ensayos en taller / banco de pruebas.</td></tr>
+      <tr><td><b>Fase 3</b></td><td>Ensayos en línea sobre la RFIG (pruebas en vía).</td></tr>
+      <tr><td><b>Fase 4</b></td><td>Documentación para autorización ante AESF / ERA (OSS).</td></tr>
+      <tr><td><b>Fase 5</b></td><td>Puesta en servicio y documentación post-autorización.</td></tr>
+    </table>
+    <h3>Significado de los estados</h3>
+    <div class="status-legend"><span class="dot" style="background:var(--pendiente)"></span> <b>Pendiente</b> — sin iniciar.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--elaboracion)"></span> <b>En Elaboración</b> — en curso de redacción o preparación.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--revision)"></span> <b>En Revisión</b> — elaborado, pendiente de validación interna o externa.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--completado)"></span> <b>Completado</b> — finalizado y aprobado.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--bloqueado)"></span> <b>Bloqueado</b> — no se puede avanzar (dependencia externa, falta de información, etc.).</div>
+    <div class="status-legend"><span class="dot" style="background:var(--noaplica)"></span> <b>No aplica</b> — no requerido para esta configuración/proyecto.</div>
+    <p style="margin-top:16px;color:var(--text-secondary);font-size:12px;">Usa la barra lateral para navegar entre fases, los filtros para localizar documentos concretos, y los botones de exportación para respaldar tu progreso o generar un informe imprimible.</p>
+  </div>
+</div>
+
+<!-- ===== NORM MODAL ===== -->
+<div class="modal-overlay" id="norm-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('norm-modal')">✕</button>
+    <h2>📚 Resumen normativo clave</h2>
+    <table id="norm-table"></table>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DATOS NORMATIVOS
+============================================================ */
+const NORMS = {
+  ET036:  { short:"ET 03.365.008.6", full:"ET 03.365.008.6 — Especificación Técnica ASFA Digital Embarcado (AESF/ADIF), 1ª Ed. + Modificación 1 + Modificación 2 + Erratum enero 2020", url:"https://www.seguridadferroviaria.es" },
+  IFMR:   { short:"IF MR ALC-20", full:"IF MR ALC-20 (Orden TMA/576/2020) — Instrucción Ferroviaria de locomotoras", url:"https://www.seguridadferroviaria.es" },
+  ETH:    { short:"ETH Locomotoras", full:"ETH Locomotoras — Resolución de 10/07/2009, con actualización ASFA Digital de 10/05/2017", url:"https://www.adif.es" },
+  UE2018545: { short:"Rgto. (UE) 2018/545", full:"Reglamento de Ejecución (UE) 2018/545 — Procedimiento de autorización de vehículos ferroviarios", url:"https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32018R0545" },
+  CSMRA:  { short:"CSM-RA (UE) 402/2013", full:"Reglamento de Ejecución (UE) 402/2013 — Método común de seguridad para la evaluación de riesgos (CSM-RA)", url:"https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32013R0402" },
+  ETILOC: { short:"ETI Loc&Pas", full:"ETI Loc & Pas — Especificación Técnica de Interoperabilidad de locomotoras y material rodante de viajeros", url:"https://www.era.europa.eu" },
+  RT42020:{ short:"RT 4/2020 AESF", full:"Recomendación Técnica 4/2020 AESF — Recorridos previos a la autorización de puesta en servicio", url:"https://www.seguridadferroviaria.es" },
+  NAS154: { short:"NAS 154", full:"NAS 154 — Reglas de ubicación de balizas ASFA Digital", url:"https://www.adif.es" },
+  ERATV:  { short:"ERATV", full:"ERATV — European Register of Authorised Vehicle Types (Registro Europeo de Tipos de Vehículo Autorizados)", url:"https://www.era.europa.eu" },
+  EN50121:{ short:"EN 50121", full:"EN 50121 — Compatibilidad electromagnética en aplicaciones ferroviarias", url:"https://www.era.europa.eu" },
+  GUIA:   { short:"Guía AESF O-02.02-02", full:"Guía AESF O-02.02-02-GU-01 — Clasificación de modificaciones en vehículos y subsistemas", url:"https://www.seguridadferroviaria.es" },
+  OSS:    { short:"OSS ERA", full:"One Stop Shop (OSS) de la ERA — Ventanilla única para solicitudes de autorización de vehículos", url:"https://www.era.europa.eu" },
+};
+
+/* ============================================================
+   DATOS DEL PROYECTO — FASES Y DOCUMENTOS
+============================================================ */
+let _docIdCounter = 0;
+function d(name, norms){
+  _docIdCounter++;
+  return {
+    id:"doc-"+_docIdCounter,
+    name:name,
+    status:"Pendiente",
+    responsible:"",
+    deadline:"",
+    norms:norms||[],
+    notes:""
+  };
+}
+
+let STATE = {
+  lastUpdate: new Date().toISOString(),
+  phases: [
+    {
+      id:0, name:"FASE 0", title:"Análisis de Partida y Planificación",
+      objective:"Establecer la línea base técnica y normativa del proyecto.",
+      docs:[
+        d("Análisis de la configuración actual de la locomotora Vectron (variante MS/AC/DC) y su impacto en la integración ASFA", ["ETH"]),
+        d("Identificación del área de uso prevista en la RFIG (Red Ferroviaria de Interés General) — ancho ibérico 1.668 mm", ["UE2018545"]),
+        d("Análisis de la autorización de tipo de vehículo existente (ERATV) y sus condiciones", ["ERATV","UE2018545"]),
+        d("Estudio de normativa aplicable: ET 03.365.008.6 ASFA Digital Embarcado (1ª Ed. + M1 + M2 + Erratum enero 2020)", ["ET036"]),
+        d("Estudio de la IF MR ALC-20 (Orden TMA/576/2020) — Instrucción Ferroviaria de locomotoras", ["IFMR"]),
+        d("Estudio de la ETH Locomotoras (Resolución 10/07/2009 + actualización ASFA Digital 10/05/2017)", ["ETH"]),
+        d("Plan de proyecto integrador con hitos y entregables documentales", []),
+        d("Matriz de trazabilidad normativa (requisitos ET ADIF vs. solución técnica)", ["ET036","IFMR"]),
+      ]
+    },
+    {
+      id:1, name:"FASE 1", title:"Diseño del Sistema y Documentación Técnica de la Integración",
+      objective:"Definir cómo se integra el ASFA Digital en la Vectron y documentarlo.",
+      docs:[
+        d("Descripción técnica del sistema ASFA Digital embarcado a instalar (fabricante, modelo, versión SW/HW)", ["ET036"]),
+        d("Declaración CE de conformidad del equipo ASFA Digital embarcado (componente de interoperabilidad)", ["ETILOC"]),
+        d("Planos de instalación a bordo: ubicación de UCDIG (Unidad Central Digital), antenas ECB, cableado", ["ET036","NAS154"]),
+        d("Esquemas eléctricos de interfaz ASFA Digital ↔ locomotora Vectron", ["ET036"]),
+        d("Documento de interfaz con el sistema de conducción (DMI/cabina del maquinista)", ["ET036"]),
+        d("Interfaz con el sistema de frenado de emergencia (bucle de seguridad / tren de freno)", ["ET036"]),
+        d("Interfaz con el registrador de eventos (DIV — Dispositivo de Integridad del Vehículo)", ["ET036"]),
+        d("Análisis de Compatibilidad Electromagnética (CEM) preliminar", ["EN50121"]),
+        d("Estudio de impacto sobre la autorización de tipo existente (clasificación de la modificación según Guía AESF O-02.02-02-GU-01)", ["GUIA"]),
+        d("Análisis de riesgo de la modificación (CSM-RA / Reg. UE 402/2013) si aplica", ["CSMRA"]),
+      ]
+    },
+    {
+      id:2, name:"FASE 2", title:"Verificación y Ensayos en Taller / Banco de Pruebas",
+      objective:"Verificar el correcto funcionamiento del sistema antes de pruebas en línea.",
+      docs:[
+        d("Plan de ensayos en banco (funcional, eléctrico, CEM)", ["EN50121"]),
+        d("Procedimiento de configuración del equipo ASFA Digital (parámetros del vehículo: Vmáx, diámetro de rueda, tacogenerador, código operador)", ["ET036"]),
+        d("Actas de ensayos funcionales en taller (verificación de todas las funciones según ET 03.365.008.6)", ["ET036"]),
+        d("Informe de ensayos de compatibilidad electromagnética (según EN 50121)", ["EN50121"]),
+        d("Informe de verificación de interfaz con sistema de frenado", ["ET036"]),
+        d("Informe de verificación de interfaz con registrador de eventos (DIV)", ["ET036"]),
+        d("Informe de verificación de interfaz DMI/cabina", ["ET036"]),
+        d("Acta de aceptación del sistema tras ensayos en taller (integrador + fabricante ASFA)", []),
+        d("Registro de configuración software del equipo embarcado (versión SW, checksum, parámetros)", ["ET036"]),
+      ]
+    },
+    {
+      id:3, name:"FASE 3", title:"Ensayos en Línea (Pruebas en Vía)",
+      objective:"Validar el funcionamiento en condiciones reales de circulación en la RFIG.",
+      docs:[
+        d("Solicitud de autorización de pruebas en línea ante ADIF (coordinación de circulaciones de prueba)", ["IFMR"]),
+        d("Plan de ensayos en vía (recorridos, balizas a ensayar, aspectos a verificar)", ["RT42020"]),
+        d("Procedimiento operativo de seguridad para pruebas en vía", ["IFMR"]),
+        d("Habilitación del personal de conducción para pruebas (maquinistas habilitados)", []),
+        d("Actas de pruebas en vía con balizas ASFA Digital (verificación de recepción y respuesta)", ["ET036","NAS154"]),
+        d("Informe de pruebas de compatibilidad con circuitos de vía instalados en RFIG (Anexo L — IF MR ALC-20)", ["IFMR"]),
+        d("Acta de recorridos de validación final (Recomendación Técnica 4/2020 AESF)", ["RT42020"]),
+        d("Informe de análisis de datos del registrador (DIV) durante pruebas en vía", []),
+        d("Acta de conclusión de pruebas en línea con resultado satisfactorio", ["RT42020"]),
+      ]
+    },
+    {
+      id:4, name:"FASE 4", title:"Documentación para Autorización (AESF / ERA)",
+      objective:"Preparar y presentar el expediente de autorización de la modificación.",
+      docs:[
+        d("Expediente técnico completo de la modificación (Technical File)", ["UE2018545"]),
+        d("Declaración de verificación del subsistema «Control-Mando y Señalización a bordo» (DoV CCS OB)", ["ETILOC"]),
+        d("Informe del Organismo Notificado (NoBo) o Organismo Designado (DeBo) si aplica", ["ETILOC"]),
+        d("Informe de Evaluación de Seguridad (CSM-RA) si la modificación es significativa para la seguridad", ["CSMRA"]),
+        d("Informe del Organismo de Evaluación de la Seguridad (AsBo) si aplica", ["CSMRA"]),
+        d("Actualización del Expediente Técnico del tipo de vehículo con la nueva configuración", ["ERATV"]),
+        d("Documentación acreditativa del cumplimiento de la ET 03.365.008.6 (ASFA Digital Embarcado)", ["ET036"]),
+        d("Documentación acreditativa del cumplimiento de la IF MR ALC-20 (requisitos nacionales)", ["IFMR"]),
+        d("Solicitud formal de autorización a través de la OSS (One Stop Shop ERA) o ante la AESF", ["OSS","UE2018545"]),
+        d("Documentación en castellano para evaluación por la AESF como ANS del área de uso (RFIG)", ["UE2018545"]),
+        d("Registro del nuevo tipo/variante/versión en el ERATV (ERA Vehicle Type Register)", ["ERATV"]),
+      ]
+    },
+    {
+      id:5, name:"FASE 5", title:"Puesta en Servicio y Documentación Post-Autorización",
+      objective:"Completar los requisitos para la entrada en servicio comercial.",
+      docs:[
+        d("Autorización de tipo de vehículo o autorización de puesta en el mercado emitida (ERA/AESF)", ["UE2018545"]),
+        d("Registro del vehículo en el Registro Europeo de Vehículos (NVE — Número de Vehículo Europeo)", ["ERATV"]),
+        d("Manual de conducción actualizado con procedimientos ASFA Digital para el maquinista", ["ET036"]),
+        d("Manual de mantenimiento del equipo ASFA Digital embarcado (actualización del Plan de Mantenimiento)", ["ET036"]),
+        d("Comunicación del nuevo Plan de Mantenimiento a la AESF (actualización en sede electrónica)", []),
+        d("Procedimiento de verificación funcional periódica del ASFA Digital (checklist de maquinista y talleres)", ["ET036"]),
+        d("Registro de la EEM (Entidad Encargada del Mantenimiento) actualizado con el nuevo subsistema", []),
+        d("Acta de puesta en servicio comercial firmada", []),
+        d("Archivo del expediente completo del proyecto (gestión documental del integrador)", []),
+      ]
+    },
+  ]
+};
+
+const STATUS_LIST = ["Pendiente","En Elaboración","En Revisión","Completado","Bloqueado","No aplica"];
+function statusClass(s){
+  return "status-"+s.toLowerCase().replace(/\s+/g,"-").normalize("NFD").replace(/[̀-ͯ]/g,"");
+}
+function statusIcon(s){
+  switch(s){
+    case "Completado": return "✅";
+    case "Bloqueado": return "🔒";
+    case "En Revisión": return "⚠️";
+    case "En Elaboración": return "⏳";
+    case "No aplica": return "🚫";
+    default: return "📄";
+  }
+}
+
+let activePhaseId = "all";
+let currentView = "all";
+let activityLog = [];
+
+function closeSplash(){
+  document.getElementById("splash").style.display="none";
+  document.getElementById("app").style.display="flex";
+  renderAll();
+}
+
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+
+/* ============================================================
+   RENDER
+============================================================ */
+function allDocs(){
+  let out=[];
+  STATE.phases.forEach(p=>p.docs.forEach(doc=>out.push({phase:p, doc:doc})));
+  return out;
+}
+
+function phaseProgress(phase){
+  const total = phase.docs.length;
+  if(total===0) return {pct:0,status:"Pendiente"};
+  const applicable = phase.docs.filter(dd=>dd.status!=="No aplica");
+  const denom = applicable.length || total;
+  const done = phase.docs.filter(dd=>dd.status==="Completado" || dd.status==="No aplica").length;
+  const completadosReal = phase.docs.filter(dd=>dd.status==="Completado").length;
+  const pct = denom? Math.round((completadosReal/denom)*100) : 100;
+  let status = "Pendiente";
+  if(completadosReal===denom && denom>0) status="Completada";
+  else if(phase.docs.some(dd=>dd.status!=="Pendiente")) status="En curso";
+  return {pct, status};
+}
+
+function phaseDotColor(status){
+  if(status==="Completada") return "var(--completado)";
+  if(status==="En curso") return "var(--elaboracion)";
+  return "var(--pendiente)";
+}
+
+function renderKPIs(){
+  const docs = allDocs().map(x=>x.doc);
+  const total = docs.length;
+  const completado = docs.filter(x=>x.status==="Completado").length;
+  const bloqueado = docs.filter(x=>x.status==="Bloqueado").length;
+  const pendiente = docs.filter(x=>x.status==="Pendiente").length;
+  const enCurso = docs.filter(x=>x.status==="En Elaboración"||x.status==="En Revisión").length;
+  const noaplica = docs.filter(x=>x.status==="No aplica").length;
+  const denom = total - noaplica || 1;
+  const pct = Math.round((completado/denom)*100);
+
+  let activePhase = STATE.phases.find(p=>{
+    const pr = phaseProgress(p);
+    return pr.status==="En curso";
+  }) || STATE.phases.find(p=>phaseProgress(p).status!=="Completada") || STATE.phases[STATE.phases.length-1];
+
+  const kpibar = document.getElementById("kpibar");
+  kpibar.innerHTML = `
+    <div class="kpi total"><div class="kpi-label">Total documentos</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi completado"><div class="kpi-label">Completados</div><div class="kpi-value">${completado}</div></div>
+    <div class="kpi progreso"><div class="kpi-label">En curso</div><div class="kpi-value">${enCurso}</div></div>
+    <div class="kpi pendiente"><div class="kpi-label">Pendientes</div><div class="kpi-value">${pendiente}</div></div>
+    <div class="kpi bloqueado"><div class="kpi-label">Bloqueados</div><div class="kpi-value">${bloqueado}</div></div>
+    <div class="kpi global">
+      <div class="kpi-label">Avance global</div>
+      <div class="kpi-value">${pct}%</div>
+      <div class="progress-outer"><div class="progress-inner" style="width:${pct}%"></div></div>
+    </div>
+    <div class="kpi meta"><div class="kpi-label">Fase activa</div><div class="kpi-value">${activePhase.name}</div></div>
+    <div class="kpi meta"><div class="kpi-label">Última actualización</div><div class="kpi-value">${new Date(STATE.lastUpdate).toLocaleString('es-ES')}</div></div>
+  `;
+}
+
+function renderSidebar(){
+  const nav = document.getElementById("phase-nav");
+  let html = `<div class="phase-item ${activePhaseId==='all'?'active':''}" onclick="selectPhase('all')">
+      <div class="phase-title"><span class="dot" style="background:var(--accent)"></span> Todas las fases</div>
+      <div class="phase-sub">Vista completa del proyecto</div>
+    </div>`;
+  STATE.phases.forEach(p=>{
+    const pr = phaseProgress(p);
+    html += `<div class="phase-item ${activePhaseId===p.id?'active':''}" onclick="selectPhase(${p.id})">
+      <div class="phase-title"><span class="dot" style="background:${phaseDotColor(pr.status)}"></span> ${p.name} — ${p.title}</div>
+      <div class="phase-sub">${pr.status} · ${pr.pct}%</div>
+      <div class="phase-bar-outer"><div class="phase-bar-inner" style="width:${pr.pct}%"></div></div>
+    </div>`;
+  });
+  nav.innerHTML = html;
+
+  const logList = document.getElementById("log-list");
+  if(activityLog.length===0){
+    logList.innerHTML = `<div class="log-empty">Sin cambios registrados todavía.</div>`;
+  } else {
+    logList.innerHTML = activityLog.slice(0,15).map(e=>
+      `<div class="log-entry">${e.time} — <b>${e.doc}</b>: ${e.from} → <b>${e.to}</b></div>`
+    ).join("");
+  }
+}
+
+function selectPhase(id){
+  activePhaseId = id;
+  render();
+}
+function selectAllPhases(){ selectPhase('all'); }
+
+function setView(v){
+  currentView = v;
+  document.querySelectorAll("#view-toggle button").forEach(b=>b.classList.toggle("active", b.dataset.view===v));
+  render();
+}
+
+function renderPhaseHeader(){
+  const el = document.getElementById("phase-header");
+  const printTitle = document.getElementById("print-report-title");
+  if(activePhaseId==='all'){
+    el.innerHTML = `<h2>Todas las fases del proyecto</h2><p>Vista completa de la documentación de integración ASFA Digital en locomotora Vectron.</p>`;
+    printTitle.textContent = "Informe documental completo — ASFA Digital @ Vectron";
+  } else {
+    const p = STATE.phases.find(x=>x.id===activePhaseId);
+    el.innerHTML = `<h2>${p.name} — ${p.title}</h2><p>${p.objective}</p>`;
+    printTitle.textContent = `Informe documental — ${p.name}: ${p.title}`;
+  }
+}
+
+function renderDocs(){
+  const list = document.getElementById("doc-list");
+  const search = document.getElementById("search-input").value.toLowerCase();
+  const statusFilter = document.getElementById("filter-status").value;
+
+  let entries = allDocs();
+  if(activePhaseId!=='all'){
+    entries = entries.filter(e=>e.phase.id===activePhaseId);
+  }
+  if(search){
+    entries = entries.filter(e=>e.doc.name.toLowerCase().includes(search));
+  }
+  if(statusFilter){
+    entries = entries.filter(e=>e.doc.status===statusFilter);
+  }
+  if(currentView==="pendiente") entries = entries.filter(e=>e.doc.status==="Pendiente");
+  if(currentView==="bloqueado") entries = entries.filter(e=>e.doc.status==="Bloqueado");
+  if(currentView==="completado") entries = entries.filter(e=>e.doc.status==="Completado");
+
+  if(entries.length===0){
+    list.innerHTML = `<div class="empty-state">📭 No hay documentos que coincidan con los filtros aplicados.</div>`;
+    return;
+  }
+
+  list.innerHTML = entries.map(({phase,doc})=>{
+    const normBadges = doc.norms.map(code=>{
+      const n = NORMS[code];
+      if(!n) return "";
+      return `<span class="norm-badge">${n.short}<span class="tooltip">${n.full}</span></span>`;
+    }).join(" ");
+    return `
+    <div class="doc-card ${statusClass(doc.status)}" data-id="${doc.id}">
+      <div class="doc-card-top">
+        <div class="doc-name"><span class="doc-icon">${statusIcon(doc.status)}</span>${doc.name}
+          ${activePhaseId==='all' ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${phase.name} — ${phase.title}</div>`:""}
+        </div>
+        <span class="status-pill ${statusClass(doc.status)}">${doc.status}</span>
+      </div>
+      <div class="doc-fields">
+        <div class="doc-field">
+          <label>Estado</label>
+          <select onchange="updateDoc('${doc.id}','status',this.value)">
+            ${STATUS_LIST.map(s=>`<option value="${s}" ${s===doc.status?'selected':''}>${s}</option>`).join("")}
+          </select>
+        </div>
+        <div class="doc-field">
+          <label>Responsable</label>
+          <input type="text" placeholder="Nombre / equipo" value="${escapeAttr(doc.responsible)}" onchange="updateDoc('${doc.id}','responsible',this.value)">
+        </div>
+        <div class="doc-field">
+          <label>Fecha límite</label>
+          <input type="date" value="${doc.deadline}" onchange="updateDoc('${doc.id}','deadline',this.value)">
+        </div>
+        <div class="doc-field notes">
+          <label>Notas / comentarios</label>
+          <textarea placeholder="Añadir notas..." onchange="updateDoc('${doc.id}','notes',this.value)">${escapeHtml(doc.notes)}</textarea>
+        </div>
+      </div>
+      <div>${normBadges}</div>
+    </div>`;
+  }).join("");
+}
+
+function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
+function escapeHtml(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function findDoc(id){
+  for(const p of STATE.phases){
+    for(const dd of p.docs){
+      if(dd.id===id) return dd;
+    }
+  }
+  return null;
+}
+
+function updateDoc(id, field, value){
+  const doc = findDoc(id);
+  if(!doc) return;
+  if(field==="status"){
+    const from = doc.status;
+    doc.status = value;
+    activityLog.unshift({
+      time:new Date().toLocaleString('es-ES',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}),
+      doc: doc.name.length>40? doc.name.slice(0,40)+"…" : doc.name,
+      from, to:value
+    });
+  } else {
+    doc[field] = value;
+  }
+  STATE.lastUpdate = new Date().toISOString();
+  saveLocal();
+  render();
+}
+
+function render(){
+  renderKPIs();
+  renderSidebar();
+  renderPhaseHeader();
+  renderDocs();
+}
+function renderAll(){ render(); }
+
+/* ============================================================
+   EXPORT / IMPORT
+============================================================ */
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "asfa-vectron-tracker-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.phases) throw new Error("Formato inválido");
+      STATE = data;
+      activityLog.unshift({time:new Date().toLocaleString('es-ES'), doc:"(sistema)", from:"—", to:"Importación de estado desde JSON"});
+      saveLocal();
+      render();
+      alert("Estado importado correctamente.");
+    }catch(err){
+      alert("Error al importar el archivo: "+err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+
+function saveLocal(){
+  try{ localStorage.setItem("asfa-vectron-state", JSON.stringify(STATE)); }catch(e){}
+}
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem("asfa-vectron-state");
+    if(raw){
+      const data = JSON.parse(raw);
+      if(data && data.phases) STATE = data;
+    }
+  }catch(e){}
+}
+
+/* ============================================================
+   NORM MODAL TABLE
+============================================================ */
+function renderNormTable(){
+  const table = document.getElementById("norm-table");
+  table.innerHTML = "<tr><th>Referencia</th><th>Descripción</th></tr>" +
+    Object.values(NORMS).map(n=>`<tr><td><a href="${n.url}" target="_blank" rel="noopener">${n.short}</a></td><td>${n.full}</td></tr>`).join("");
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+loadLocal();
+renderNormTable();
+document.getElementById("phase-header"); // noop to ensure DOM ready
+</script>
+</body>
+</html>
