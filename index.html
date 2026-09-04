@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,12 +13,12 @@
   --accent:#F5C518;
   --text:#E8EDF2;
   --text-secondary:#7A92A8;
-  --pendiente:#6B7A8D;
-  --elaboracion:#3D8BCD;
-  --revision:#F0A500;
-  --completado:#27AE60;
-  --bloqueado:#E74C3C;
-  --noaplica:#4A5568;
+  --pending:#6B7A8D;
+  --in-progress:#3D8BCD;
+  --review:#F0A500;
+  --completed:#27AE60;
+  --blocked:#E74C3C;
+  --not-applicable:#4A5568;
   --radius:8px;
 }
 *{box-sizing:border-box;}
@@ -71,7 +71,7 @@ input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);}
 }
 #splash p{color:var(--text-secondary);margin:0 0 28px 0;font-size:15px;max-width:640px;}
 #splash .rail{
-  width:120px;height:4px;background:linear-gradient(90deg,var(--completado),var(--accent));
+  width:120px;height:4px;background:linear-gradient(90deg,var(--completed),var(--accent));
   border-radius:2px;margin-bottom:28px;
 }
 #splash button{padding:12px 28px;font-size:14px;}
@@ -106,16 +106,16 @@ header#topbar .actions{display:flex;gap:8px;flex-wrap:wrap;}
 .kpi .kpi-label{font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;}
 .kpi .kpi-value{font-size:22px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;}
 .kpi.total .kpi-value{color:var(--text);}
-.kpi.completado .kpi-value{color:var(--completado);}
-.kpi.progreso .kpi-value{color:var(--elaboracion);}
-.kpi.pendiente .kpi-value{color:var(--pendiente);}
-.kpi.bloqueado .kpi-value{color:var(--bloqueado);}
+.kpi.completed .kpi-value{color:var(--completed);}
+.kpi.in-progress .kpi-value{color:var(--in-progress);}
+.kpi.pending .kpi-value{color:var(--pending);}
+.kpi.blocked .kpi-value{color:var(--blocked);}
 .kpi.global{flex:1;min-width:220px;}
 .kpi.global .progress-outer{
   background:#0A1420;border-radius:20px;height:14px;overflow:hidden;margin-top:8px;border:1px solid var(--sidebar-border);
 }
 .kpi.global .progress-inner{
-  height:100%;background:linear-gradient(90deg,var(--completado),var(--accent));
+  height:100%;background:linear-gradient(90deg,var(--completed),var(--accent));
   transition:width .4s ease;border-radius:20px;
 }
 .kpi.meta{font-size:11px;color:var(--text-secondary);}
@@ -172,15 +172,15 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 #doc-list{display:flex;flex-direction:column;gap:10px;}
 .doc-card{
   background:var(--card);border:1px solid var(--sidebar-border);border-radius:var(--radius);
-  border-left:5px solid var(--pendiente);
+  border-left:5px solid var(--pending);
   padding:14px 16px;
 }
-.doc-card.status-completado{border-left-color:var(--completado);}
-.doc-card.status-en-elaboracion{border-left-color:var(--elaboracion);}
-.doc-card.status-en-revision{border-left-color:var(--revision);}
-.doc-card.status-bloqueado{border-left-color:var(--bloqueado);}
-.doc-card.status-no-aplica{border-left-color:var(--noaplica);opacity:.7;}
-.doc-card.status-pendiente{border-left-color:var(--pendiente);}
+.doc-card.status-completed{border-left-color:var(--completed);}
+.doc-card.status-in-progress{border-left-color:var(--in-progress);}
+.doc-card.status-under-review{border-left-color:var(--review);}
+.doc-card.status-blocked{border-left-color:var(--blocked);}
+.doc-card.status-not-applicable{border-left-color:var(--not-applicable);opacity:.7;}
+.doc-card.status-pending{border-left-color:var(--pending);}
 
 .doc-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
 .doc-name{font-size:14px;font-weight:600;color:var(--text);flex:1;}
@@ -206,12 +206,12 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 .status-pill{
   font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;
 }
-.status-pill.status-pendiente{background:rgba(107,122,141,.2);color:var(--pendiente);}
-.status-pill.status-en-elaboracion{background:rgba(61,139,205,.2);color:var(--elaboracion);}
-.status-pill.status-en-revision{background:rgba(240,165,0,.2);color:var(--revision);}
-.status-pill.status-completado{background:rgba(39,174,96,.2);color:var(--completado);}
-.status-pill.status-bloqueado{background:rgba(231,76,60,.2);color:var(--bloqueado);}
-.status-pill.status-no-aplica{background:rgba(74,85,104,.2);color:#9AA5B1;}
+.status-pill.status-pending{background:rgba(107,122,141,.2);color:var(--pending);}
+.status-pill.status-in-progress{background:rgba(61,139,205,.2);color:var(--in-progress);}
+.status-pill.status-under-review{background:rgba(240,165,0,.2);color:var(--review);}
+.status-pill.status-completed{background:rgba(39,174,96,.2);color:var(--completed);}
+.status-pill.status-blocked{background:rgba(231,76,60,.2);color:var(--blocked);}
+.status-pill.status-not-applicable{background:rgba(74,85,104,.2);color:#9AA5B1;}
 
 .empty-state{
   text-align:center;padding:60px 20px;color:var(--text-secondary);
@@ -257,8 +257,8 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 <div id="splash">
   <div class="rail"></div>
   <h1>ASFA Digital @ Vectron</h1>
-  <p>Gestión Documental de Integración y Homologación — Panel de control del equipo integrador para la puesta en servicio del sistema ASFA Digital embarcado en la locomotora Vectron sobre la Red Ferroviaria de Interés General.</p>
-  <button class="btn-primary" onclick="closeSplash()">Entrar al panel →</button>
+  <p>Integration &amp; Certification Document Management — A control panel for the integrator team overseeing entry into service of the onboard ASFA Digital system on the Vectron locomotive across the Spanish General Interest Rail Network.</p>
+  <button class="btn-primary" onclick="closeSplash()">Enter dashboard →</button>
 </div>
 
 <!-- ===== APP ===== -->
@@ -268,16 +268,16 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
       <div class="logo">🚆</div>
       <div>
         <h1>ASFA Digital @ Vectron</h1>
-        <span>Gestión Documental de Integración y Homologación</span>
+        <span>Integration &amp; Certification Document Management</span>
       </div>
     </div>
     <div class="actions">
-      <button class="btn-secondary" onclick="openModal('help-modal')">❓ Ayuda</button>
-      <button class="btn-secondary" onclick="openModal('norm-modal')">📚 Normativa</button>
-      <button class="btn-secondary" onclick="exportJSON()">⬇️ Exportar JSON</button>
-      <button class="btn-secondary" onclick="document.getElementById('import-file').click()">⬆️ Importar JSON</button>
+      <button class="btn-secondary" onclick="openModal('help-modal')">❓ Help</button>
+      <button class="btn-secondary" onclick="openModal('norm-modal')">📚 Regulations</button>
+      <button class="btn-secondary" onclick="exportJSON()">⬇️ Export JSON</button>
+      <button class="btn-secondary" onclick="document.getElementById('import-file').click()">⬆️ Import JSON</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
-      <button class="btn-primary" onclick="exportPDFReport()">🖨️ Exportar PDF</button>
+      <button class="btn-primary" onclick="exportPDFReport()">🖨️ Export PDF</button>
     </div>
   </header>
 
@@ -285,10 +285,10 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 
   <div id="body-layout">
     <nav id="sidebar">
-      <h3>Fases del proyecto</h3>
+      <h3>Project phases</h3>
       <div id="phase-nav"></div>
       <div id="activitylog">
-        <h3>Registro de actividad</h3>
+        <h3>Activity log</h3>
         <div id="log-list"></div>
       </div>
     </nav>
@@ -296,24 +296,24 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
     <main id="content">
       <div id="print-report-title"></div>
       <div id="toolbar" class="no-print">
-        <input type="text" id="search-input" placeholder="🔎 Buscar documento..." oninput="render()">
+        <input type="text" id="search-input" placeholder="🔎 Search documents..." oninput="render()">
         <select id="filter-status" onchange="render()">
-          <option value="">Todos los estados</option>
-          <option value="Pendiente">Pendiente</option>
-          <option value="En Elaboración">En Elaboración</option>
-          <option value="En Revisión">En Revisión</option>
-          <option value="Completado">Completado</option>
-          <option value="Bloqueado">Bloqueado</option>
-          <option value="No aplica">No aplica</option>
+          <option value="">All statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Completed">Completed</option>
+          <option value="Blocked">Blocked</option>
+          <option value="Not Applicable">Not Applicable</option>
         </select>
         <div class="view-toggle" id="view-toggle">
-          <button class="active" data-view="all" onclick="setView('all')">Todos</button>
-          <button data-view="pendiente" onclick="setView('pendiente')">Solo pendientes</button>
-          <button data-view="bloqueado" onclick="setView('bloqueado')">Solo bloqueados</button>
-          <button data-view="completado" onclick="setView('completado')">Solo completados</button>
+          <button class="active" data-view="all" onclick="setView('all')">All</button>
+          <button data-view="pending" onclick="setView('pending')">Pending only</button>
+          <button data-view="blocked" onclick="setView('blocked')">Blocked only</button>
+          <button data-view="completed" onclick="setView('completed')">Completed only</button>
         </div>
         <div class="spacer"></div>
-        <button class="btn-secondary" onclick="selectAllPhases()">Ver todas las fases</button>
+        <button class="btn-secondary" onclick="selectAllPhases()">View all phases</button>
       </div>
 
       <div id="phase-header"></div>
@@ -326,25 +326,25 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 <div class="modal-overlay" id="help-modal">
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal('help-modal')">✕</button>
-    <h2>❓ Cómo usar este panel</h2>
-    <p>Esta herramienta permite al <b>equipo integrador</b> hacer seguimiento de toda la documentación necesaria para integrar el sistema ASFA Digital embarcado en una locomotora Vectron y obtener su autorización de puesta en servicio en España.</p>
-    <h3>Flujo del proyecto</h3>
+    <h2>❓ How to use this dashboard</h2>
+    <p>This tool lets the <b>integrator team</b> track all the documentation required to integrate the onboard ASFA Digital system into a Vectron locomotive and obtain its entry-into-service authorisation in Spain.</p>
+    <h3>Project workflow</h3>
     <table>
-      <tr><td><b>Fase 0</b></td><td>Análisis de partida y planificación: línea base técnica y normativa.</td></tr>
-      <tr><td><b>Fase 1</b></td><td>Diseño del sistema y documentación técnica de la integración a bordo.</td></tr>
-      <tr><td><b>Fase 2</b></td><td>Verificación y ensayos en taller / banco de pruebas.</td></tr>
-      <tr><td><b>Fase 3</b></td><td>Ensayos en línea sobre la RFIG (pruebas en vía).</td></tr>
-      <tr><td><b>Fase 4</b></td><td>Documentación para autorización ante AESF / ERA (OSS).</td></tr>
-      <tr><td><b>Fase 5</b></td><td>Puesta en servicio y documentación post-autorización.</td></tr>
+      <tr><td><b>Phase 0</b></td><td>Baseline analysis and planning: technical and regulatory baseline.</td></tr>
+      <tr><td><b>Phase 1</b></td><td>System design and technical documentation of the onboard integration.</td></tr>
+      <tr><td><b>Phase 2</b></td><td>Workshop verification and test-bench trials.</td></tr>
+      <tr><td><b>Phase 3</b></td><td>On-line trials over the RFIG (track testing).</td></tr>
+      <tr><td><b>Phase 4</b></td><td>Authorisation documentation before AESF / ERA (OSS).</td></tr>
+      <tr><td><b>Phase 5</b></td><td>Entry into service and post-authorisation documentation.</td></tr>
     </table>
-    <h3>Significado de los estados</h3>
-    <div class="status-legend"><span class="dot" style="background:var(--pendiente)"></span> <b>Pendiente</b> — sin iniciar.</div>
-    <div class="status-legend"><span class="dot" style="background:var(--elaboracion)"></span> <b>En Elaboración</b> — en curso de redacción o preparación.</div>
-    <div class="status-legend"><span class="dot" style="background:var(--revision)"></span> <b>En Revisión</b> — elaborado, pendiente de validación interna o externa.</div>
-    <div class="status-legend"><span class="dot" style="background:var(--completado)"></span> <b>Completado</b> — finalizado y aprobado.</div>
-    <div class="status-legend"><span class="dot" style="background:var(--bloqueado)"></span> <b>Bloqueado</b> — no se puede avanzar (dependencia externa, falta de información, etc.).</div>
-    <div class="status-legend"><span class="dot" style="background:var(--noaplica)"></span> <b>No aplica</b> — no requerido para esta configuración/proyecto.</div>
-    <p style="margin-top:16px;color:var(--text-secondary);font-size:12px;">Usa la barra lateral para navegar entre fases, los filtros para localizar documentos concretos, y los botones de exportación para respaldar tu progreso o generar un informe imprimible.</p>
+    <h3>What the statuses mean</h3>
+    <div class="status-legend"><span class="dot" style="background:var(--pending)"></span> <b>Pending</b> — not started.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--in-progress)"></span> <b>In Progress</b> — being drafted or prepared.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--review)"></span> <b>Under Review</b> — drafted, awaiting internal or external validation.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--completed)"></span> <b>Completed</b> — finalized and approved.</div>
+    <div class="status-legend"><span class="dot" style="background:var(--blocked)"></span> <b>Blocked</b> — cannot proceed (external dependency, missing information, etc.).</div>
+    <div class="status-legend"><span class="dot" style="background:var(--not-applicable)"></span> <b>Not Applicable</b> — not required for this configuration/project.</div>
+    <p style="margin-top:16px;color:var(--text-secondary);font-size:12px;">Use the sidebar to navigate between phases, the filters to find specific documents, and the export buttons to back up your progress or generate a printable report.</p>
   </div>
 </div>
 
@@ -352,32 +352,32 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 <div class="modal-overlay" id="norm-modal">
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal('norm-modal')">✕</button>
-    <h2>📚 Resumen normativo clave</h2>
+    <h2>📚 Key regulatory summary</h2>
     <table id="norm-table"></table>
   </div>
 </div>
 
 <script>
 /* ============================================================
-   DATOS NORMATIVOS
+   REGULATORY DATA
 ============================================================ */
 const NORMS = {
-  ET036:  { short:"ET 03.365.008.6", full:"ET 03.365.008.6 — Especificación Técnica ASFA Digital Embarcado (AESF/ADIF), 1ª Ed. + Modificación 1 + Modificación 2 + Erratum enero 2020", url:"https://www.seguridadferroviaria.es" },
-  IFMR:   { short:"IF MR ALC-20", full:"IF MR ALC-20 (Orden TMA/576/2020) — Instrucción Ferroviaria de locomotoras", url:"https://www.seguridadferroviaria.es" },
-  ETH:    { short:"ETH Locomotoras", full:"ETH Locomotoras — Resolución de 10/07/2009, con actualización ASFA Digital de 10/05/2017", url:"https://www.adif.es" },
-  UE2018545: { short:"Rgto. (UE) 2018/545", full:"Reglamento de Ejecución (UE) 2018/545 — Procedimiento de autorización de vehículos ferroviarios", url:"https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32018R0545" },
-  CSMRA:  { short:"CSM-RA (UE) 402/2013", full:"Reglamento de Ejecución (UE) 402/2013 — Método común de seguridad para la evaluación de riesgos (CSM-RA)", url:"https://eur-lex.europa.eu/legal-content/ES/TXT/?uri=CELEX:32013R0402" },
-  ETILOC: { short:"ETI Loc&Pas", full:"ETI Loc & Pas — Especificación Técnica de Interoperabilidad de locomotoras y material rodante de viajeros", url:"https://www.era.europa.eu" },
-  RT42020:{ short:"RT 4/2020 AESF", full:"Recomendación Técnica 4/2020 AESF — Recorridos previos a la autorización de puesta en servicio", url:"https://www.seguridadferroviaria.es" },
-  NAS154: { short:"NAS 154", full:"NAS 154 — Reglas de ubicación de balizas ASFA Digital", url:"https://www.adif.es" },
-  ERATV:  { short:"ERATV", full:"ERATV — European Register of Authorised Vehicle Types (Registro Europeo de Tipos de Vehículo Autorizados)", url:"https://www.era.europa.eu" },
-  EN50121:{ short:"EN 50121", full:"EN 50121 — Compatibilidad electromagnética en aplicaciones ferroviarias", url:"https://www.era.europa.eu" },
-  GUIA:   { short:"Guía AESF O-02.02-02", full:"Guía AESF O-02.02-02-GU-01 — Clasificación de modificaciones en vehículos y subsistemas", url:"https://www.seguridadferroviaria.es" },
-  OSS:    { short:"OSS ERA", full:"One Stop Shop (OSS) de la ERA — Ventanilla única para solicitudes de autorización de vehículos", url:"https://www.era.europa.eu" },
+  ET036:  { short:"ET 03.365.008.6", full:"ET 03.365.008.6 — Technical Specification for Onboard ASFA Digital (AESF/ADIF), 1st Ed. + Amendment 1 + Amendment 2 + January 2020 Erratum", url:"https://www.seguridadferroviaria.es" },
+  IFMR:   { short:"IF MR ALC-20", full:"IF MR ALC-20 (Order TMA/576/2020) — Railway Instruction for locomotives", url:"https://www.seguridadferroviaria.es" },
+  ETH:    { short:"ETH Locomotives", full:"ETH Locomotives — Resolution of 10/07/2009, updated for ASFA Digital on 10/05/2017", url:"https://www.adif.es" },
+  UE2018545: { short:"Reg. (EU) 2018/545", full:"Commission Implementing Regulation (EU) 2018/545 — Railway vehicle authorisation procedure", url:"https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018R0545" },
+  CSMRA:  { short:"CSM-RA (EU) 402/2013", full:"Commission Implementing Regulation (EU) 402/2013 — Common Safety Method for Risk Evaluation and Assessment (CSM-RA)", url:"https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32013R0402" },
+  ETILOC: { short:"Loc&Pas TSI", full:"Loc&Pas TSI — Technical Specification for Interoperability of locomotives and passenger rolling stock", url:"https://www.era.europa.eu" },
+  RT42020:{ short:"AESF TR 4/2020", full:"AESF Technical Recommendation 4/2020 — Pre-authorisation validation runs", url:"https://www.seguridadferroviaria.es" },
+  NAS154: { short:"NAS 154", full:"NAS 154 — Rules for ASFA Digital balise placement", url:"https://www.adif.es" },
+  ERATV:  { short:"ERATV", full:"ERATV — European Register of Authorised Vehicle Types", url:"https://www.era.europa.eu" },
+  EN50121:{ short:"EN 50121", full:"EN 50121 — Electromagnetic compatibility in railway applications", url:"https://www.era.europa.eu" },
+  GUIA:   { short:"AESF Guide O-02.02-02", full:"AESF Guide O-02.02-02-GU-01 — Classification of vehicle and subsystem modifications", url:"https://www.seguridadferroviaria.es" },
+  OSS:    { short:"ERA OSS", full:"European Union Agency for Railways One-Stop Shop (OSS) — Single window for vehicle authorisation applications", url:"https://www.era.europa.eu" },
 };
 
 /* ============================================================
-   DATOS DEL PROYECTO — FASES Y DOCUMENTOS
+   PROJECT DATA — PHASES AND DOCUMENTS
 ============================================================ */
 let _docIdCounter = 0;
 function d(name, norms){
@@ -385,7 +385,7 @@ function d(name, norms){
   return {
     id:"doc-"+_docIdCounter,
     name:name,
-    status:"Pendiente",
+    status:"Pending",
     responsible:"",
     deadline:"",
     norms:norms||[],
@@ -397,111 +397,111 @@ let STATE = {
   lastUpdate: new Date().toISOString(),
   phases: [
     {
-      id:0, name:"FASE 0", title:"Análisis de Partida y Planificación",
-      objective:"Establecer la línea base técnica y normativa del proyecto.",
+      id:0, name:"PHASE 0", title:"Baseline Analysis and Planning",
+      objective:"Establish the project's technical and regulatory baseline.",
       docs:[
-        d("Análisis de la configuración actual de la locomotora Vectron (variante MS/AC/DC) y su impacto en la integración ASFA", ["ETH"]),
-        d("Identificación del área de uso prevista en la RFIG (Red Ferroviaria de Interés General) — ancho ibérico 1.668 mm", ["UE2018545"]),
-        d("Análisis de la autorización de tipo de vehículo existente (ERATV) y sus condiciones", ["ERATV","UE2018545"]),
-        d("Estudio de normativa aplicable: ET 03.365.008.6 ASFA Digital Embarcado (1ª Ed. + M1 + M2 + Erratum enero 2020)", ["ET036"]),
-        d("Estudio de la IF MR ALC-20 (Orden TMA/576/2020) — Instrucción Ferroviaria de locomotoras", ["IFMR"]),
-        d("Estudio de la ETH Locomotoras (Resolución 10/07/2009 + actualización ASFA Digital 10/05/2017)", ["ETH"]),
-        d("Plan de proyecto integrador con hitos y entregables documentales", []),
-        d("Matriz de trazabilidad normativa (requisitos ET ADIF vs. solución técnica)", ["ET036","IFMR"]),
+        d("Analysis of the current Vectron locomotive configuration (MS/AC/DC variant) and its impact on ASFA integration", ["ETH"]),
+        d("Identification of the intended area of use within the RFIG (Spanish General Interest Rail Network) — 1,668 mm Iberian gauge", ["UE2018545"]),
+        d("Analysis of the existing vehicle type authorisation (ERATV) and its conditions", ["ERATV","UE2018545"]),
+        d("Study of applicable regulations: ET 03.365.008.6 Onboard ASFA Digital (1st Ed. + Amendment 1 + Amendment 2 + January 2020 Erratum)", ["ET036"]),
+        d("Study of IF MR ALC-20 (Order TMA/576/2020) — Railway Instruction for locomotives", ["IFMR"]),
+        d("Study of ETH Locomotives (Resolution of 10/07/2009 + ASFA Digital update of 10/05/2017)", ["ETH"]),
+        d("Integrator project plan with milestones and documentary deliverables", []),
+        d("Regulatory traceability matrix (ADIF ET requirements vs. technical solution)", ["ET036","IFMR"]),
       ]
     },
     {
-      id:1, name:"FASE 1", title:"Diseño del Sistema y Documentación Técnica de la Integración",
-      objective:"Definir cómo se integra el ASFA Digital en la Vectron y documentarlo.",
+      id:1, name:"PHASE 1", title:"System Design and Integration Technical Documentation",
+      objective:"Define how ASFA Digital is integrated into the Vectron and document it.",
       docs:[
-        d("Descripción técnica del sistema ASFA Digital embarcado a instalar (fabricante, modelo, versión SW/HW)", ["ET036"]),
-        d("Declaración CE de conformidad del equipo ASFA Digital embarcado (componente de interoperabilidad)", ["ETILOC"]),
-        d("Planos de instalación a bordo: ubicación de UCDIG (Unidad Central Digital), antenas ECB, cableado", ["ET036","NAS154"]),
-        d("Esquemas eléctricos de interfaz ASFA Digital ↔ locomotora Vectron", ["ET036"]),
-        d("Documento de interfaz con el sistema de conducción (DMI/cabina del maquinista)", ["ET036"]),
-        d("Interfaz con el sistema de frenado de emergencia (bucle de seguridad / tren de freno)", ["ET036"]),
-        d("Interfaz con el registrador de eventos (DIV — Dispositivo de Integridad del Vehículo)", ["ET036"]),
-        d("Análisis de Compatibilidad Electromagnética (CEM) preliminar", ["EN50121"]),
-        d("Estudio de impacto sobre la autorización de tipo existente (clasificación de la modificación según Guía AESF O-02.02-02-GU-01)", ["GUIA"]),
-        d("Análisis de riesgo de la modificación (CSM-RA / Reg. UE 402/2013) si aplica", ["CSMRA"]),
+        d("Technical description of the onboard ASFA Digital system to be installed (manufacturer, model, SW/HW version)", ["ET036"]),
+        d("EC declaration of conformity for the onboard ASFA Digital equipment (interoperability component)", ["ETILOC"]),
+        d("Onboard installation drawings: location of the UCDIG (Digital Central Unit), ECB antennas, wiring", ["ET036","NAS154"]),
+        d("Electrical interface diagrams: ASFA Digital ↔ Vectron locomotive", ["ET036"]),
+        d("Interface document with the driving system (DMI / driver's cab)", ["ET036"]),
+        d("Interface with the emergency braking system (safety loop / brake train)", ["ET036"]),
+        d("Interface with the event recorder (DIV — Vehicle Integrity Device)", ["ET036"]),
+        d("Preliminary Electromagnetic Compatibility (EMC) analysis", ["EN50121"]),
+        d("Impact assessment on the existing type authorisation (modification classification per AESF Guide O-02.02-02-GU-01)", ["GUIA"]),
+        d("Modification risk assessment (CSM-RA / Regulation (EU) 402/2013), if applicable", ["CSMRA"]),
       ]
     },
     {
-      id:2, name:"FASE 2", title:"Verificación y Ensayos en Taller / Banco de Pruebas",
-      objective:"Verificar el correcto funcionamiento del sistema antes de pruebas en línea.",
+      id:2, name:"PHASE 2", title:"Workshop Verification and Test-Bench Trials",
+      objective:"Verify correct system operation before on-line testing.",
       docs:[
-        d("Plan de ensayos en banco (funcional, eléctrico, CEM)", ["EN50121"]),
-        d("Procedimiento de configuración del equipo ASFA Digital (parámetros del vehículo: Vmáx, diámetro de rueda, tacogenerador, código operador)", ["ET036"]),
-        d("Actas de ensayos funcionales en taller (verificación de todas las funciones según ET 03.365.008.6)", ["ET036"]),
-        d("Informe de ensayos de compatibilidad electromagnética (según EN 50121)", ["EN50121"]),
-        d("Informe de verificación de interfaz con sistema de frenado", ["ET036"]),
-        d("Informe de verificación de interfaz con registrador de eventos (DIV)", ["ET036"]),
-        d("Informe de verificación de interfaz DMI/cabina", ["ET036"]),
-        d("Acta de aceptación del sistema tras ensayos en taller (integrador + fabricante ASFA)", []),
-        d("Registro de configuración software del equipo embarcado (versión SW, checksum, parámetros)", ["ET036"]),
+        d("Test-bench trial plan (functional, electrical, EMC)", ["EN50121"]),
+        d("ASFA Digital equipment configuration procedure (vehicle parameters: Vmax, wheel diameter, tachogenerator, operator code)", ["ET036"]),
+        d("Workshop functional test reports (verification of all functions per ET 03.365.008.6)", ["ET036"]),
+        d("Electromagnetic compatibility test report (per EN 50121)", ["EN50121"]),
+        d("Braking system interface verification report", ["ET036"]),
+        d("Event recorder (DIV) interface verification report", ["ET036"]),
+        d("DMI / cab interface verification report", ["ET036"]),
+        d("System acceptance record after workshop trials (integrator + ASFA manufacturer)", []),
+        d("Onboard equipment software configuration record (SW version, checksum, parameters)", ["ET036"]),
       ]
     },
     {
-      id:3, name:"FASE 3", title:"Ensayos en Línea (Pruebas en Vía)",
-      objective:"Validar el funcionamiento en condiciones reales de circulación en la RFIG.",
+      id:3, name:"PHASE 3", title:"On-Line Trials (Track Testing)",
+      objective:"Validate operation under real running conditions on the RFIG.",
       docs:[
-        d("Solicitud de autorización de pruebas en línea ante ADIF (coordinación de circulaciones de prueba)", ["IFMR"]),
-        d("Plan de ensayos en vía (recorridos, balizas a ensayar, aspectos a verificar)", ["RT42020"]),
-        d("Procedimiento operativo de seguridad para pruebas en vía", ["IFMR"]),
-        d("Habilitación del personal de conducción para pruebas (maquinistas habilitados)", []),
-        d("Actas de pruebas en vía con balizas ASFA Digital (verificación de recepción y respuesta)", ["ET036","NAS154"]),
-        d("Informe de pruebas de compatibilidad con circuitos de vía instalados en RFIG (Anexo L — IF MR ALC-20)", ["IFMR"]),
-        d("Acta de recorridos de validación final (Recomendación Técnica 4/2020 AESF)", ["RT42020"]),
-        d("Informe de análisis de datos del registrador (DIV) durante pruebas en vía", []),
-        d("Acta de conclusión de pruebas en línea con resultado satisfactorio", ["RT42020"]),
+        d("Request for on-line test authorisation from ADIF (coordination of test runs)", ["IFMR"]),
+        d("Track test plan (routes, balises to be tested, aspects to verify)", ["RT42020"]),
+        d("Safety operating procedure for track testing", ["IFMR"]),
+        d("Qualification of driving staff for testing (authorised drivers)", []),
+        d("Track test reports with ASFA Digital balises (reception and response verification)", ["ET036","NAS154"]),
+        d("Compatibility test report with track circuits installed on the RFIG (Annex L — IF MR ALC-20)", ["IFMR"]),
+        d("Final validation run record (AESF Technical Recommendation 4/2020)", ["RT42020"]),
+        d("Recorder (DIV) data analysis report during track testing", []),
+        d("On-line test completion record with satisfactory result", ["RT42020"]),
       ]
     },
     {
-      id:4, name:"FASE 4", title:"Documentación para Autorización (AESF / ERA)",
-      objective:"Preparar y presentar el expediente de autorización de la modificación.",
+      id:4, name:"PHASE 4", title:"Authorisation Documentation (AESF / ERA)",
+      objective:"Prepare and submit the modification's authorisation file.",
       docs:[
-        d("Expediente técnico completo de la modificación (Technical File)", ["UE2018545"]),
-        d("Declaración de verificación del subsistema «Control-Mando y Señalización a bordo» (DoV CCS OB)", ["ETILOC"]),
-        d("Informe del Organismo Notificado (NoBo) o Organismo Designado (DeBo) si aplica", ["ETILOC"]),
-        d("Informe de Evaluación de Seguridad (CSM-RA) si la modificación es significativa para la seguridad", ["CSMRA"]),
-        d("Informe del Organismo de Evaluación de la Seguridad (AsBo) si aplica", ["CSMRA"]),
-        d("Actualización del Expediente Técnico del tipo de vehículo con la nueva configuración", ["ERATV"]),
-        d("Documentación acreditativa del cumplimiento de la ET 03.365.008.6 (ASFA Digital Embarcado)", ["ET036"]),
-        d("Documentación acreditativa del cumplimiento de la IF MR ALC-20 (requisitos nacionales)", ["IFMR"]),
-        d("Solicitud formal de autorización a través de la OSS (One Stop Shop ERA) o ante la AESF", ["OSS","UE2018545"]),
-        d("Documentación en castellano para evaluación por la AESF como ANS del área de uso (RFIG)", ["UE2018545"]),
-        d("Registro del nuevo tipo/variante/versión en el ERATV (ERA Vehicle Type Register)", ["ERATV"]),
+        d("Complete technical file for the modification (Technical File)", ["UE2018545"]),
+        d('Verification declaration for the "Onboard Control-Command and Signalling" subsystem (DoV CCS OB)', ["ETILOC"]),
+        d("Report from the Notified Body (NoBo) or Designated Body (DeBo), if applicable", ["ETILOC"]),
+        d("Safety Assessment Report (CSM-RA), if the modification is significant to safety", ["CSMRA"]),
+        d("Report from the Assessment Body (AsBo), if applicable", ["CSMRA"]),
+        d("Update of the vehicle type Technical File with the new configuration", ["ERATV"]),
+        d("Documentation evidencing compliance with ET 03.365.008.6 (Onboard ASFA Digital)", ["ET036"]),
+        d("Documentation evidencing compliance with IF MR ALC-20 (national requirements)", ["IFMR"]),
+        d("Formal authorisation application through the ERA One-Stop Shop (OSS) or to AESF", ["OSS","UE2018545"]),
+        d("Documentation in Spanish for AESF's assessment as NSA for the area of use (RFIG)", ["UE2018545"]),
+        d("Registration of the new type/variant/version in the ERATV (ERA Vehicle Type Register)", ["ERATV"]),
       ]
     },
     {
-      id:5, name:"FASE 5", title:"Puesta en Servicio y Documentación Post-Autorización",
-      objective:"Completar los requisitos para la entrada en servicio comercial.",
+      id:5, name:"PHASE 5", title:"Entry into Service and Post-Authorisation Documentation",
+      objective:"Complete the requirements for commercial entry into service.",
       docs:[
-        d("Autorización de tipo de vehículo o autorización de puesta en el mercado emitida (ERA/AESF)", ["UE2018545"]),
-        d("Registro del vehículo en el Registro Europeo de Vehículos (NVE — Número de Vehículo Europeo)", ["ERATV"]),
-        d("Manual de conducción actualizado con procedimientos ASFA Digital para el maquinista", ["ET036"]),
-        d("Manual de mantenimiento del equipo ASFA Digital embarcado (actualización del Plan de Mantenimiento)", ["ET036"]),
-        d("Comunicación del nuevo Plan de Mantenimiento a la AESF (actualización en sede electrónica)", []),
-        d("Procedimiento de verificación funcional periódica del ASFA Digital (checklist de maquinista y talleres)", ["ET036"]),
-        d("Registro de la EEM (Entidad Encargada del Mantenimiento) actualizado con el nuevo subsistema", []),
-        d("Acta de puesta en servicio comercial firmada", []),
-        d("Archivo del expediente completo del proyecto (gestión documental del integrador)", []),
+        d("Vehicle type authorisation or placing-on-the-market authorisation issued (ERA/AESF)", ["UE2018545"]),
+        d("Vehicle registration in the European Vehicle Register (EVN — European Vehicle Number)", ["ERATV"]),
+        d("Updated driving manual with ASFA Digital procedures for the driver", ["ET036"]),
+        d("Maintenance manual for the onboard ASFA Digital equipment (Maintenance Plan update)", ["ET036"]),
+        d("Notification of the new Maintenance Plan to AESF (update via electronic portal)", []),
+        d("Periodic functional verification procedure for ASFA Digital (driver and workshop checklist)", ["ET036"]),
+        d("ECM (Entity in Charge of Maintenance) record updated with the new subsystem", []),
+        d("Signed commercial entry-into-service record", []),
+        d("Archiving of the complete project file (integrator's document management)", []),
       ]
     },
   ]
 };
 
-const STATUS_LIST = ["Pendiente","En Elaboración","En Revisión","Completado","Bloqueado","No aplica"];
+const STATUS_LIST = ["Pending","In Progress","Under Review","Completed","Blocked","Not Applicable"];
 function statusClass(s){
   return "status-"+s.toLowerCase().replace(/\s+/g,"-").normalize("NFD").replace(/[̀-ͯ]/g,"");
 }
 function statusIcon(s){
   switch(s){
-    case "Completado": return "✅";
-    case "Bloqueado": return "🔒";
-    case "En Revisión": return "⚠️";
-    case "En Elaboración": return "⏳";
-    case "No aplica": return "🚫";
+    case "Completed": return "✅";
+    case "Blocked": return "🔒";
+    case "Under Review": return "⚠️";
+    case "In Progress": return "⏳";
+    case "Not Applicable": return "🚫";
     default: return "📄";
   }
 }
@@ -530,62 +530,61 @@ function allDocs(){
 
 function phaseProgress(phase){
   const total = phase.docs.length;
-  if(total===0) return {pct:0,status:"Pendiente"};
-  const applicable = phase.docs.filter(dd=>dd.status!=="No aplica");
+  if(total===0) return {pct:0,status:"Pending"};
+  const applicable = phase.docs.filter(dd=>dd.status!=="Not Applicable");
   const denom = applicable.length || total;
-  const done = phase.docs.filter(dd=>dd.status==="Completado" || dd.status==="No aplica").length;
-  const completadosReal = phase.docs.filter(dd=>dd.status==="Completado").length;
-  const pct = denom? Math.round((completadosReal/denom)*100) : 100;
-  let status = "Pendiente";
-  if(completadosReal===denom && denom>0) status="Completada";
-  else if(phase.docs.some(dd=>dd.status!=="Pendiente")) status="En curso";
+  const completedCount = phase.docs.filter(dd=>dd.status==="Completed").length;
+  const pct = denom? Math.round((completedCount/denom)*100) : 100;
+  let status = "Pending";
+  if(completedCount===denom && denom>0) status="Completed";
+  else if(phase.docs.some(dd=>dd.status!=="Pending")) status="In Progress";
   return {pct, status};
 }
 
 function phaseDotColor(status){
-  if(status==="Completada") return "var(--completado)";
-  if(status==="En curso") return "var(--elaboracion)";
-  return "var(--pendiente)";
+  if(status==="Completed") return "var(--completed)";
+  if(status==="In Progress") return "var(--in-progress)";
+  return "var(--pending)";
 }
 
 function renderKPIs(){
   const docs = allDocs().map(x=>x.doc);
   const total = docs.length;
-  const completado = docs.filter(x=>x.status==="Completado").length;
-  const bloqueado = docs.filter(x=>x.status==="Bloqueado").length;
-  const pendiente = docs.filter(x=>x.status==="Pendiente").length;
-  const enCurso = docs.filter(x=>x.status==="En Elaboración"||x.status==="En Revisión").length;
-  const noaplica = docs.filter(x=>x.status==="No aplica").length;
-  const denom = total - noaplica || 1;
-  const pct = Math.round((completado/denom)*100);
+  const completed = docs.filter(x=>x.status==="Completed").length;
+  const blocked = docs.filter(x=>x.status==="Blocked").length;
+  const pending = docs.filter(x=>x.status==="Pending").length;
+  const inProgress = docs.filter(x=>x.status==="In Progress"||x.status==="Under Review").length;
+  const notApplicable = docs.filter(x=>x.status==="Not Applicable").length;
+  const denom = total - notApplicable || 1;
+  const pct = Math.round((completed/denom)*100);
 
   let activePhase = STATE.phases.find(p=>{
     const pr = phaseProgress(p);
-    return pr.status==="En curso";
-  }) || STATE.phases.find(p=>phaseProgress(p).status!=="Completada") || STATE.phases[STATE.phases.length-1];
+    return pr.status==="In Progress";
+  }) || STATE.phases.find(p=>phaseProgress(p).status!=="Completed") || STATE.phases[STATE.phases.length-1];
 
   const kpibar = document.getElementById("kpibar");
   kpibar.innerHTML = `
-    <div class="kpi total"><div class="kpi-label">Total documentos</div><div class="kpi-value">${total}</div></div>
-    <div class="kpi completado"><div class="kpi-label">Completados</div><div class="kpi-value">${completado}</div></div>
-    <div class="kpi progreso"><div class="kpi-label">En curso</div><div class="kpi-value">${enCurso}</div></div>
-    <div class="kpi pendiente"><div class="kpi-label">Pendientes</div><div class="kpi-value">${pendiente}</div></div>
-    <div class="kpi bloqueado"><div class="kpi-label">Bloqueados</div><div class="kpi-value">${bloqueado}</div></div>
+    <div class="kpi total"><div class="kpi-label">Total documents</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi completed"><div class="kpi-label">Completed</div><div class="kpi-value">${completed}</div></div>
+    <div class="kpi in-progress"><div class="kpi-label">In progress</div><div class="kpi-value">${inProgress}</div></div>
+    <div class="kpi pending"><div class="kpi-label">Pending</div><div class="kpi-value">${pending}</div></div>
+    <div class="kpi blocked"><div class="kpi-label">Blocked</div><div class="kpi-value">${blocked}</div></div>
     <div class="kpi global">
-      <div class="kpi-label">Avance global</div>
+      <div class="kpi-label">Overall progress</div>
       <div class="kpi-value">${pct}%</div>
       <div class="progress-outer"><div class="progress-inner" style="width:${pct}%"></div></div>
     </div>
-    <div class="kpi meta"><div class="kpi-label">Fase activa</div><div class="kpi-value">${activePhase.name}</div></div>
-    <div class="kpi meta"><div class="kpi-label">Última actualización</div><div class="kpi-value">${new Date(STATE.lastUpdate).toLocaleString('es-ES')}</div></div>
+    <div class="kpi meta"><div class="kpi-label">Active phase</div><div class="kpi-value">${activePhase.name}</div></div>
+    <div class="kpi meta"><div class="kpi-label">Last updated</div><div class="kpi-value">${new Date(STATE.lastUpdate).toLocaleString('en-GB')}</div></div>
   `;
 }
 
 function renderSidebar(){
   const nav = document.getElementById("phase-nav");
   let html = `<div class="phase-item ${activePhaseId==='all'?'active':''}" onclick="selectPhase('all')">
-      <div class="phase-title"><span class="dot" style="background:var(--accent)"></span> Todas las fases</div>
-      <div class="phase-sub">Vista completa del proyecto</div>
+      <div class="phase-title"><span class="dot" style="background:var(--accent)"></span> All phases</div>
+      <div class="phase-sub">Full project view</div>
     </div>`;
   STATE.phases.forEach(p=>{
     const pr = phaseProgress(p);
@@ -599,7 +598,7 @@ function renderSidebar(){
 
   const logList = document.getElementById("log-list");
   if(activityLog.length===0){
-    logList.innerHTML = `<div class="log-empty">Sin cambios registrados todavía.</div>`;
+    logList.innerHTML = `<div class="log-empty">No changes recorded yet.</div>`;
   } else {
     logList.innerHTML = activityLog.slice(0,15).map(e=>
       `<div class="log-entry">${e.time} — <b>${e.doc}</b>: ${e.from} → <b>${e.to}</b></div>`
@@ -623,12 +622,12 @@ function renderPhaseHeader(){
   const el = document.getElementById("phase-header");
   const printTitle = document.getElementById("print-report-title");
   if(activePhaseId==='all'){
-    el.innerHTML = `<h2>Todas las fases del proyecto</h2><p>Vista completa de la documentación de integración ASFA Digital en locomotora Vectron.</p>`;
-    printTitle.textContent = "Informe documental completo — ASFA Digital @ Vectron";
+    el.innerHTML = `<h2>All project phases</h2><p>Full view of the ASFA Digital integration documentation for the Vectron locomotive.</p>`;
+    printTitle.textContent = "Full documentation report — ASFA Digital @ Vectron";
   } else {
     const p = STATE.phases.find(x=>x.id===activePhaseId);
     el.innerHTML = `<h2>${p.name} — ${p.title}</h2><p>${p.objective}</p>`;
-    printTitle.textContent = `Informe documental — ${p.name}: ${p.title}`;
+    printTitle.textContent = `Documentation report — ${p.name}: ${p.title}`;
   }
 }
 
@@ -647,12 +646,12 @@ function renderDocs(){
   if(statusFilter){
     entries = entries.filter(e=>e.doc.status===statusFilter);
   }
-  if(currentView==="pendiente") entries = entries.filter(e=>e.doc.status==="Pendiente");
-  if(currentView==="bloqueado") entries = entries.filter(e=>e.doc.status==="Bloqueado");
-  if(currentView==="completado") entries = entries.filter(e=>e.doc.status==="Completado");
+  if(currentView==="pending") entries = entries.filter(e=>e.doc.status==="Pending");
+  if(currentView==="blocked") entries = entries.filter(e=>e.doc.status==="Blocked");
+  if(currentView==="completed") entries = entries.filter(e=>e.doc.status==="Completed");
 
   if(entries.length===0){
-    list.innerHTML = `<div class="empty-state">📭 No hay documentos que coincidan con los filtros aplicados.</div>`;
+    list.innerHTML = `<div class="empty-state">📭 No documents match the applied filters.</div>`;
     return;
   }
 
@@ -672,22 +671,22 @@ function renderDocs(){
       </div>
       <div class="doc-fields">
         <div class="doc-field">
-          <label>Estado</label>
+          <label>Status</label>
           <select onchange="updateDoc('${doc.id}','status',this.value)">
             ${STATUS_LIST.map(s=>`<option value="${s}" ${s===doc.status?'selected':''}>${s}</option>`).join("")}
           </select>
         </div>
         <div class="doc-field">
-          <label>Responsable</label>
-          <input type="text" placeholder="Nombre / equipo" value="${escapeAttr(doc.responsible)}" onchange="updateDoc('${doc.id}','responsible',this.value)">
+          <label>Responsible</label>
+          <input type="text" placeholder="Name / team" value="${escapeAttr(doc.responsible)}" onchange="updateDoc('${doc.id}','responsible',this.value)">
         </div>
         <div class="doc-field">
-          <label>Fecha límite</label>
+          <label>Due date</label>
           <input type="date" value="${doc.deadline}" onchange="updateDoc('${doc.id}','deadline',this.value)">
         </div>
         <div class="doc-field notes">
-          <label>Notas / comentarios</label>
-          <textarea placeholder="Añadir notas..." onchange="updateDoc('${doc.id}','notes',this.value)">${escapeHtml(doc.notes)}</textarea>
+          <label>Notes / comments</label>
+          <textarea placeholder="Add notes..." onchange="updateDoc('${doc.id}','notes',this.value)">${escapeHtml(doc.notes)}</textarea>
         </div>
       </div>
       <div>${normBadges}</div>
@@ -714,7 +713,7 @@ function updateDoc(id, field, value){
     const from = doc.status;
     doc.status = value;
     activityLog.unshift({
-      time:new Date().toLocaleString('es-ES',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}),
+      time:new Date().toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}),
       doc: doc.name.length>40? doc.name.slice(0,40)+"…" : doc.name,
       from, to:value
     });
@@ -745,7 +744,7 @@ async function exportJSON(){
     try{
       await downloads.save({ filename, data: json });
     }catch(err){
-      if(err && err.code !== "declined") alert("No se pudo guardar el archivo: "+(err.message||err.code));
+      if(err && err.code !== "declined") alert("Could not save the file: "+(err.message||err.code));
     }
     return;
   }
@@ -792,12 +791,12 @@ async function exportPDFReport(){
   }
 
   const scope = activePhaseId==='all'
-    ? "Todas las fases"
+    ? "All phases"
     : (STATE.phases.find(p=>p.id===activePhaseId)||{}).title || "";
 
   writeLines("ASFA Digital @ Vectron", {size:18, bold:true, gapAfter:6});
-  writeLines("Informe documental de integración y homologación — "+scope, {size:11, gapAfter:2});
-  writeLines("Generado: "+new Date().toLocaleString('es-ES'), {size:9, gapAfter:16});
+  writeLines("Integration & certification documentation report — "+scope, {size:11, gapAfter:2});
+  writeLines("Generated: "+new Date().toLocaleString('en-GB'), {size:9, gapAfter:16});
 
   let entries = allDocs();
   if(activePhaseId!=='all') entries = entries.filter(e=>e.phase.id===activePhaseId);
@@ -812,14 +811,14 @@ async function exportPDFReport(){
     writeLines("• "+d.name, {size:10, bold:true, gapAfter:2});
     const norms = d.norms.map(code => (NORMS[code]||{}).short).filter(Boolean).join(", ");
     writeLines(
-      "Estado: "+d.status+"   ·   Responsable: "+(d.responsible||"—")+"   ·   Fecha límite: "+(d.deadline||"—")+(norms?"   ·   Normativa: "+norms:""),
+      "Status: "+d.status+"   ·   Responsible: "+(d.responsible||"—")+"   ·   Due date: "+(d.deadline||"—")+(norms?"   ·   Regulatory refs: "+norms:""),
       {size:9, indent:12, gapAfter:2}
     );
-    if(d.notes) writeLines("Notas: "+d.notes, {size:9, indent:12, gapAfter:2});
+    if(d.notes) writeLines("Notes: "+d.notes, {size:9, indent:12, gapAfter:2});
     y += 6;
   });
 
-  const filename = "asfa-vectron-informe-"+new Date().toISOString().slice(0,10)+".pdf";
+  const filename = "asfa-vectron-report-"+new Date().toISOString().slice(0,10)+".pdf";
   const blob = pdf.output("blob");
 
   const downloads = window.claude ? await claude.use("downloads").catch(()=>null) : null;
@@ -827,7 +826,7 @@ async function exportPDFReport(){
     try{
       await downloads.save({ filename, data: blob });
     }catch(err){
-      if(err && err.code !== "declined") alert("No se pudo guardar el PDF: "+(err.message||err.code));
+      if(err && err.code !== "declined") alert("Could not save the PDF: "+(err.message||err.code));
     }
     return;
   }
@@ -848,14 +847,14 @@ function importJSON(event){
   reader.onload = function(e){
     try{
       const data = JSON.parse(e.target.result);
-      if(!data.phases) throw new Error("Formato inválido");
+      if(!data.phases) throw new Error("Invalid format");
       STATE = data;
-      activityLog.unshift({time:new Date().toLocaleString('es-ES'), doc:"(sistema)", from:"—", to:"Importación de estado desde JSON"});
+      activityLog.unshift({time:new Date().toLocaleString('en-GB'), doc:"(system)", from:"—", to:"State imported from JSON"});
       saveLocal();
       render();
-      alert("Estado importado correctamente.");
+      alert("State imported successfully.");
     }catch(err){
-      alert("Error al importar el archivo: "+err.message);
+      alert("Error importing file: "+err.message);
     }
   };
   reader.readAsText(file);
@@ -880,7 +879,7 @@ function loadLocal(){
 ============================================================ */
 function renderNormTable(){
   const table = document.getElementById("norm-table");
-  table.innerHTML = "<tr><th>Referencia</th><th>Descripción</th></tr>" +
+  table.innerHTML = "<tr><th>Reference</th><th>Description</th></tr>" +
     Object.values(NORMS).map(n=>`<tr><td><a href="${n.url}" target="_blank" rel="noopener">${n.short}</a></td><td>${n.full}</td></tr>`).join("");
 }
 
