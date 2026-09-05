@@ -110,6 +110,7 @@ header#topbar .actions{display:flex;gap:8px;flex-wrap:wrap;}
 .kpi.in-progress .kpi-value{color:var(--in-progress);}
 .kpi.pending .kpi-value{color:var(--pending);}
 .kpi.blocked .kpi-value{color:var(--blocked);}
+.kpi.engineering .kpi-value{color:var(--accent);}
 .kpi.global{flex:1;min-width:220px;}
 .kpi.global .progress-outer{
   background:#0A1420;border-radius:20px;height:14px;overflow:hidden;margin-top:8px;border:1px solid var(--sidebar-border);
@@ -185,6 +186,11 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 .doc-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
 .doc-name{font-size:14px;font-weight:600;color:var(--text);flex:1;}
 .doc-icon{margin-right:6px;}
+.doc-badges{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-shrink:0;}
+.owner-badge{
+  display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;
+  padding:3px 10px;border-radius:20px;white-space:nowrap;
+}
 .doc-fields{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center;}
 .doc-field{display:flex;flex-direction:column;gap:3px;}
 .doc-field label{font-size:10px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.4px;}
@@ -213,6 +219,21 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 .status-pill.status-blocked{background:rgba(231,76,60,.2);color:var(--blocked);}
 .status-pill.status-not-applicable{background:rgba(74,85,104,.2);color:#9AA5B1;}
 
+.basis-line{margin-top:10px;font-size:11px;color:var(--text-secondary);display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap;}
+.basis-tag{flex-shrink:0;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;font-size:10px;}
+.basis-tag.level-verified{background:rgba(39,174,96,.18);color:var(--completed);}
+.basis-tag.level-general{background:rgba(240,165,0,.18);color:var(--review);}
+.basis-tag.level-practice{background:rgba(122,146,168,.18);color:var(--text-secondary);}
+.basis-text{flex:1;min-width:220px;}
+
+.compendium-box{
+  margin-top:8px;padding:8px 10px;background:#0F1D2C;border:1px dashed #2f4a68;
+  border-radius:8px;font-size:11px;color:var(--text-secondary);
+}
+.compendium-box b{color:var(--text);}
+.compendium-box ul{margin:5px 0 0 18px;padding:0;}
+.compendium-box li{margin:2px 0;}
+
 .empty-state{
   text-align:center;padding:60px 20px;color:var(--text-secondary);
 }
@@ -234,6 +255,10 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 .modal-close{float:right;background:#1E3048;color:var(--text);width:28px;height:28px;border-radius:6px;padding:0;}
 .status-legend{display:flex;gap:8px;align-items:center;margin:6px 0;}
 .status-legend .dot{width:10px;height:10px;border-radius:50%;}
+.callout{
+  margin-top:12px;padding:10px 12px;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.35);
+  border-radius:8px;font-size:12px;color:var(--text);
+}
 
 /* ===== Print ===== */
 @media print{
@@ -306,6 +331,9 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
           <option value="Blocked">Blocked</option>
           <option value="Not Applicable">Not Applicable</option>
         </select>
+        <select id="filter-owner" onchange="render()">
+          <option value="">All owners</option>
+        </select>
         <div class="view-toggle" id="view-toggle">
           <button class="active" data-view="all" onclick="setView('all')">All</button>
           <button data-view="pending" onclick="setView('pending')">Pending only</button>
@@ -344,6 +372,16 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
     <div class="status-legend"><span class="dot" style="background:var(--completed)"></span> <b>Completed</b> — finalized and approved.</div>
     <div class="status-legend"><span class="dot" style="background:var(--blocked)"></span> <b>Blocked</b> — cannot proceed (external dependency, missing information, etc.).</div>
     <div class="status-legend"><span class="dot" style="background:var(--not-applicable)"></span> <b>Not Applicable</b> — not required for this configuration/project.</div>
+    <h3>Who owns each document</h3>
+    <p>Every document carries an owner badge showing which party is actually responsible for producing it — not every deliverable in an authorisation file is written by the integrator's engineering team. Filter by owner in the toolbar, or use the "Engineering-owned" counter in the header to isolate what your team is directly on the hook for.</p>
+    <h3>Regulatory basis — read this before relying on it</h3>
+    <p>Each document shows the source it's based on, tagged with a confidence level:</p>
+    <div class="status-legend"><span class="basis-tag level-verified">✅ Verified</span> <span>the specific article/annex/table was confirmed against an official AESF, ADIF or EUR-Lex source.</span></div>
+    <div class="status-legend"><span class="basis-tag level-general">📖 General reference</span> <span>the correct regulation is cited, but the exact clause was not independently confirmed — check it against the primary source before relying on it.</span></div>
+    <div class="status-legend"><span class="basis-tag level-practice">🛠 Engineering practice</span> <span>no single external clause mandates this exact document; it is included as sound project/engineering practice.</span></div>
+    <div class="callout"><b>Important:</b> this tracker was compiled through engineering research (including live web searches against AESF/ADIF/EUR-Lex sources), not by reading every primary document end-to-end. Treat "Verified" citations as a strong starting point and "General reference" / "Engineering practice" items as needing confirmation — always validate the final document set with AESF and a qualified rail authorisation specialist before submitting a real application.</div>
+    <h3>Compendium documents</h3>
+    <p>Some line items are not a single file but a bundle of several distinct documents (for example, the complete Technical File). Those cards show a "📦 Compendium" box listing every component expected inside it.</p>
     <p style="margin-top:16px;color:var(--text-secondary);font-size:12px;">Use the sidebar to navigate between phases, the filters to find specific documents, and the export buttons to back up your progress or generate a printable report.</p>
   </div>
 </div>
@@ -381,11 +419,33 @@ const NORMS = {
 };
 
 /* ============================================================
+   DOCUMENT OWNERSHIP — who is actually responsible for producing it
+============================================================ */
+const OWNERS = {
+  ENG:  { label:"Engineering (Integrator)",              icon:"🔧", color:"#F5C518", text:"#1a1200" },
+  MFR:  { label:"ASFA Manufacturer",                     icon:"🏭", color:"#8E7CC3", text:"#1a1030" },
+  NOBO: { label:"Notified / Designated Body",            icon:"🛡️", color:"#4FB0C6", text:"#04252b" },
+  ASBO: { label:"Independent Safety Assessor",           icon:"🧪", color:"#E08E45", text:"#2a1400" },
+  RU:   { label:"Railway Undertaking / Operations",      icon:"🏢", color:"#5FA8D3", text:"#04202f" },
+  ECM:  { label:"Maintenance Entity (ECM)",               icon:"🔩", color:"#4FA88A", text:"#04231a" },
+  AUTH: { label:"Regulator / Infrastructure Manager",     icon:"🏛️", color:"#9AA5B1", text:"#101820" },
+};
+
+/* Confidence level of the "regulatory basis" cited for each document.
+   See the Help modal for the full explanation. */
+const BASIS_LEVELS = {
+  verified: { icon:"✅", label:"Verified" },
+  general:  { icon:"📖", label:"General reference" },
+  practice: { icon:"🛠", label:"Engineering practice" },
+};
+
+/* ============================================================
    PROJECT DATA — PHASES AND DOCUMENTS
 ============================================================ */
 let _docIdCounter = 0;
-function d(name, norms){
+function d(name, norms, meta){
   _docIdCounter++;
+  meta = meta || {};
   return {
     id:"doc-"+_docIdCounter,
     name:name,
@@ -393,7 +453,11 @@ function d(name, norms){
     responsible:"",
     deadline:"",
     norms:norms||[],
-    notes:""
+    notes:"",
+    owner: meta.owner || "ENG",
+    basisLevel: meta.basisLevel || "practice",
+    basis: meta.basis || "",
+    compendium: meta.compendium || null
   };
 }
 
@@ -404,98 +468,167 @@ let STATE = {
       id:0, name:"PHASE 0", title:"Baseline Analysis and Planning",
       objective:"Establish the project's technical and regulatory baseline.",
       docs:[
-        d("Analysis of the current Vectron locomotive configuration (MS/AC/DC variant) and its impact on ASFA integration", ["ETH"]),
-        d("Identification of the intended area of use within the RFIG (Spanish General Interest Rail Network) — 1,668 mm Iberian gauge", ["UE2018545"]),
-        d("Analysis of the existing vehicle type authorisation (ERATV) and its conditions", ["ERATV","UE2018545"]),
-        d("Study of applicable regulations: ET 03.365.008.6 Onboard ASFA Digital (1st Ed. + Amendment 1 + Amendment 2 + January 2020 Erratum)", ["ET036"]),
-        d("Study of IF MR ALC-20 (Order TMA/576/2020) — Railway Instruction for locomotives", ["IFMR"]),
-        d("Study of ETH Locomotives (Resolution of 10/07/2009 + ASFA Digital update of 10/05/2017)", ["ETH"]),
-        d("Integrator project plan with milestones and documentary deliverables", []),
-        d("Regulatory traceability matrix (ADIF ET requirements vs. technical solution)", ["ET036","IFMR"]),
-        d("Review of AESF Technical Note NT-02/2022 to determine the categorisation of the onboard ASFA equipment modification", ["NT022022"]),
-        d("Confirmation of the target ASFA software version against the AESF migration calendar (Technical Recommendation 3/2024, target ASFA V4.2)", ["RT32024"]),
+        d("Analysis of the current Vectron locomotive configuration (MS/AC/DC variant) and its impact on ASFA integration", ["ETH"],
+          { basisLevel:"practice", basis:"Engineering baseline analysis feeding the IF MR ALC-20 / ET 03.365.008.6 applicability check; not itself named by a single external clause." }),
+        d("Identification of the intended area of use within the RFIG (Spanish General Interest Rail Network) — 1,668 mm Iberian gauge", ["UE2018545"],
+          { basisLevel:"general", basis:"Directive (EU) 2016/797, Art. 2 (definitions — \"area of use\"); exact paragraph not independently verified this session — confirm before citing formally." }),
+        d("Analysis of the existing vehicle type authorisation (ERATV) and its conditions", ["ERATV","UE2018545"],
+          { basisLevel:"practice", basis:"Feeds the modification-classification process under Reg. (EU) 2018/545 and AESF Guide O-02.02-02-GU-01; not itself a separately named mandatory document." }),
+        d("Study of applicable regulations: ET 03.365.008.6 Onboard ASFA Digital (1st Ed. + Amendment 1 + Amendment 2 + January 2020 Erratum)", ["ET036"],
+          { basisLevel:"verified", basis:"ET 03.365.008.6 (whole specification) — confirmed as a real, current AESF/ADIF document; internal chapter not cited here." }),
+        d("Study of IF MR ALC-20 (Order TMA/576/2020) — Railway Instruction for locomotives", ["IFMR"],
+          { basisLevel:"verified", basis:"IF MR ALC-20, approved by Order TMA/576/2020 — confirmed via BOE-A-2020-6804 (whole instruction)." }),
+        d("Study of ETH Locomotives (Resolution of 10/07/2009 + ASFA Digital update of 10/05/2017)", ["ETH"],
+          { basisLevel:"verified", basis:"ETH Locomotives, Resolution of 10/07/2009 — confirmed as a real AESF/ADIF document (whole)." }),
+        d("Integrator project plan with milestones and documentary deliverables", [],
+          { basisLevel:"practice", basis:"Standard project-management practice; not mandated by a specific regulatory clause." }),
+        d("Regulatory traceability matrix (ADIF ET requirements vs. technical solution)", ["ET036","IFMR"],
+          { basisLevel:"practice", basis:"Internal QA tool commonly used to build the Technical File under Reg. (EU) 2018/545, Annex I; not itself a separately named mandatory annex." }),
+        d("Review of AESF Technical Note NT-02/2022 to determine the categorisation of the onboard ASFA equipment modification", ["NT022022"],
+          { basisLevel:"verified", basis:"AESF Technical Note 2/2022 (whole note) — confirmed real document specifically on ASFA equipment modification categorisation." }),
+        d("Confirmation of the target ASFA software version against the AESF migration calendar (Technical Recommendation 3/2024, target ASFA V4.2)", ["RT32024"],
+          { basisLevel:"verified", basis:"AESF Technical Recommendation 3/2024 (whole document) — confirmed real document on the ASFA migration calendar." }),
       ]
     },
     {
       id:1, name:"PHASE 1", title:"System Design and Integration Technical Documentation",
       objective:"Define how ASFA Digital is integrated into the Vectron and document it.",
       docs:[
-        d("Technical description of the onboard ASFA Digital system to be installed (manufacturer, model, SW/HW version)", ["ET036"]),
-        d("EC declaration of conformity for the onboard ASFA Digital equipment (interoperability component)", ["ETILOC"]),
-        d("Onboard installation drawings: location of the UCDIG (Digital Central Unit), ECB antennas, wiring", ["ET036","NAS154"]),
-        d("Electrical interface diagrams: ASFA Digital ↔ Vectron locomotive", ["ET036"]),
-        d("Interface document with the driving system (DMI / driver's cab)", ["ET036"]),
-        d("Interface with the emergency braking system (safety loop / brake train)", ["ET036"]),
-        d("Interface with the event recorder (DIV — Vehicle Integrity Device)", ["ET036"]),
-        d("Interface specification for ETCS↔ASFA Digital transition logic (Levels 0/1/2, Function FN-27) — applicable when the locomotive also carries ETCS", ["ETCASFA"]),
-        d("Preliminary Electromagnetic Compatibility (EMC) analysis", ["EN50121"]),
-        d("Impact assessment on the existing type authorisation (modification classification per AESF Guide O-02.02-02-GU-01)", ["GUIA"]),
-        d("Modification risk assessment (CSM-RA / Regulation (EU) 402/2013), if applicable", ["CSMRA"]),
+        d("Technical description of the onboard ASFA Digital system to be installed (manufacturer, model, SW/HW version)", ["ET036"],
+          { basisLevel:"practice", basis:"Compiled by the integrator from the manufacturer's datasheets; supports the ET 03.365.008.6 conformity case." }),
+        d("EC declaration of conformity for the onboard ASFA Digital equipment (interoperability component)", ["ETILOC"],
+          { owner:"MFR", basisLevel:"general", basis:"Directive (EU) 2016/797 — component-of-interoperability regime; the declaration is legally issued by the equipment manufacturer, not the integrator. Exact article not verified this session." }),
+        d("Onboard installation drawings: location of the UCDIG (Digital Central Unit), ECB antennas, wiring", ["ET036","NAS154"],
+          { basisLevel:"practice", basis:"ET 03.365.008.6 installation requirements (general); drawing format follows standard engineering practice." }),
+        d("Electrical interface diagrams: ASFA Digital ↔ Vectron locomotive", ["ET036"],
+          { basisLevel:"practice", basis:"Engineering deliverable supporting the ET 03.365.008.6 conformity case; no specific clause names this drawing." }),
+        d("Interface document with the driving system (DMI / driver's cab)", ["ET036"],
+          { basisLevel:"practice", basis:"Engineering deliverable supporting ET 03.365.008.6 driver-machine interface requirements." }),
+        d("Interface with the emergency braking system (safety loop / brake train)", ["ET036"],
+          { basisLevel:"general", basis:"ETH Locomotives / IF MR ALC-20 braking safety-loop requirements; specific clause not verified this session." }),
+        d("Interface with the event recorder (DIV — Vehicle Integrity Device)", ["ET036"],
+          { basisLevel:"general", basis:"ETH Locomotives / IF MR ALC-20 event-recorder requirements; specific clause not verified this session." }),
+        d("Interface specification for ETCS↔ASFA Digital transition logic (Levels 0/1/2, Function FN-27) — applicable when the locomotive also carries ETCS", ["ETCASFA"],
+          { basisLevel:"verified", basis:"National ETC on ETCS↔ASFA transitions (Function FN-27), Resolution 3/2019 as updated by Resolution 4/2024 — confirmed real document." }),
+        d("Preliminary Electromagnetic Compatibility (EMC) analysis", ["EN50121"],
+          { basisLevel:"general", basis:"EN 50121 (railway EMC standard, whole); specific clause not cited." }),
+        d("Impact assessment on the existing type authorisation (modification classification per AESF Guide O-02.02-02-GU-01)", ["GUIA"],
+          { basisLevel:"verified", basis:"AESF Guide O-02.02-02-GU-01 (whole guide), which applies the Reg. (EU) 402/2013 Art. 4 significance criteria — confirmed real document and article." }),
+        d("Modification risk assessment (CSM-RA / Regulation (EU) 402/2013), if applicable", ["CSMRA"],
+          { basisLevel:"verified", basis:"Commission Implementing Regulation (EU) 402/2013, Art. 4(2)(a)-(f) — significance criteria confirmed via official sources." }),
       ]
     },
     {
       id:2, name:"PHASE 2", title:"Workshop Verification and Test-Bench Trials",
       objective:"Verify correct system operation before on-line testing.",
       docs:[
-        d("Test-bench trial plan (functional, electrical, EMC)", ["EN50121"]),
-        d("ASFA Digital equipment configuration procedure (vehicle parameters: Vmax, wheel diameter, tachogenerator, operator code)", ["ET036"]),
-        d("Workshop functional test reports (verification of all functions per ET 03.365.008.6)", ["ET036"]),
-        d("Electromagnetic compatibility test report (per EN 50121)", ["EN50121"]),
-        d("Braking system interface verification report", ["ET036"]),
-        d("Event recorder (DIV) interface verification report", ["ET036"]),
-        d("DMI / cab interface verification report", ["ET036"]),
-        d("Workshop functional verification report for the ETCS↔ASFA transition logic (Function FN-27)", ["ETCASFA"]),
-        d("System acceptance record after workshop trials (integrator + ASFA manufacturer)", []),
-        d("Onboard equipment software configuration record (SW version, checksum, parameters)", ["ET036"]),
+        d("Test-bench trial plan (functional, electrical, EMC)", ["EN50121"],
+          { basisLevel:"practice", basis:"Engineering test-planning practice ahead of ET 03.365.008.6 / EN 50121 verification." }),
+        d("ASFA Digital equipment configuration procedure (vehicle parameters: Vmax, wheel diameter, tachogenerator, operator code)", ["ET036"],
+          { basisLevel:"general", basis:"ET 03.365.008.6 (vehicle parametrisation requirements, general); specific clause not verified this session." }),
+        d("Workshop functional test reports (verification of all functions per ET 03.365.008.6)", ["ET036"],
+          { basisLevel:"general", basis:"ET 03.365.008.6 (functional verification requirements, general); specific clause not verified this session." }),
+        d("Electromagnetic compatibility test report (per EN 50121)", ["EN50121"],
+          { basisLevel:"general", basis:"EN 50121 (test methodology, general); specific clause not verified this session." }),
+        d("Braking system interface verification report", ["ET036"],
+          { basisLevel:"practice", basis:"Engineering verification evidence supporting the Phase 1 interface document." }),
+        d("Event recorder (DIV) interface verification report", ["ET036"],
+          { basisLevel:"practice", basis:"Engineering verification evidence supporting the Phase 1 interface document." }),
+        d("DMI / cab interface verification report", ["ET036"],
+          { basisLevel:"practice", basis:"Engineering verification evidence supporting the Phase 1 interface document." }),
+        d("Workshop functional verification report for the ETCS↔ASFA transition logic (Function FN-27)", ["ETCASFA"],
+          { basisLevel:"verified", basis:"National ETC on ETCS↔ASFA transitions (Function FN-27) — same source as the Phase 1 design document; bench verification precedes track validation." }),
+        d("System acceptance record after workshop trials (integrator + ASFA manufacturer)", [],
+          { basisLevel:"practice", basis:"Joint sign-off practice between integrator and ASFA manufacturer; not itself a named regulatory document." }),
+        d("Onboard equipment software configuration record (SW version, checksum, parameters)", ["ET036"],
+          { basisLevel:"general", basis:"ET 03.365.008.6 (configuration control, general); specific clause not verified this session." }),
       ]
     },
     {
       id:3, name:"PHASE 3", title:"On-Line Trials (Track Testing)",
       objective:"Validate operation under real running conditions on the RFIG.",
       docs:[
-        d("Request for on-line test authorisation from ADIF (coordination of test runs)", ["IFMR"]),
-        d("Track test plan (routes, balises to be tested, aspects to verify)", ["RT42020"]),
-        d("Safety operating procedure for track testing", ["IFMR"]),
-        d("Qualification of driving staff for testing (authorised drivers)", []),
-        d("Track test reports with ASFA Digital balises (reception and response verification)", ["ET036","NAS154"]),
-        d("Dynamic ETCS↔ASFA transition test record with the vehicle in motion (Function FN-27)", ["ETCASFA"]),
-        d("Compatibility test report with track circuits installed on the RFIG (Annex L — IF MR ALC-20)", ["IFMR"]),
-        d("Final validation run record (AESF Technical Recommendation 4/2020)", ["RT42020"]),
-        d("Recorder (DIV) data analysis report during track testing", []),
-        d("On-line test completion record with satisfactory result", ["RT42020"]),
+        d("Request for on-line test authorisation from ADIF (coordination of test runs)", ["IFMR"],
+          { basisLevel:"general", basis:"IF MR ALC-20 general framework for entry-into-service test runs on the RFIG; specific clause not verified this session. Submitted to ADIF as infrastructure manager." }),
+        d("Track test plan (routes, balises to be tested, aspects to verify)", ["RT42020"],
+          { basisLevel:"verified", basis:"AESF Technical Recommendation 4/2020 (whole document) — confirmed real document on pre-authorisation validation runs." }),
+        d("Safety operating procedure for track testing", ["IFMR"],
+          { basisLevel:"practice", basis:"Engineering/operations safety practice for test campaigns; co-validated with the railway undertaking." }),
+        d("Qualification of driving staff for testing (authorised drivers)", [],
+          { owner:"RU", basisLevel:"general", basis:"Directive 2007/59/EC (train driver certification, general); administered via AESF's Special Railway Register (REF) — specific article not verified this session." }),
+        d("Track test reports with ASFA Digital balises (reception and response verification)", ["ET036","NAS154"],
+          { basisLevel:"general", basis:"ET 03.365.008.6 / NAS 154 (balise reception requirements, general); specific clause not verified this session." }),
+        d("Dynamic ETCS↔ASFA transition test record with the vehicle in motion (Function FN-27)", ["ETCASFA"],
+          { basisLevel:"verified", basis:"National ETC on ETCS↔ASFA transitions (Function FN-27) — confirmed real document, explicitly covers transitions with the vehicle in motion." }),
+        d("Compatibility test report with track circuits installed on the RFIG (Annex L — IF MR ALC-20)", ["IFMR"],
+          { basisLevel:"general", basis:"IF MR ALC-20 (track-circuit compatibility, general reference); the \"Annex L\" citation was carried over from the original draft and was not independently re-verified this session — confirm against the source before relying on it." }),
+        d("Final validation run record (AESF Technical Recommendation 4/2020)", ["RT42020"],
+          { basisLevel:"verified", basis:"AESF Technical Recommendation 4/2020 (whole document) — confirmed real document." }),
+        d("Recorder (DIV) data analysis report during track testing", [],
+          { basisLevel:"practice", basis:"Engineering analysis evidence supporting the track test campaign; no specific clause names this report." }),
+        d("On-line test completion record with satisfactory result", ["RT42020"],
+          { basisLevel:"practice", basis:"Joint sign-off practice between integrator and railway undertaking closing the on-line trial campaign." }),
       ]
     },
     {
       id:4, name:"PHASE 4", title:"Authorisation Documentation (AESF / ERA)",
       objective:"Prepare and submit the modification's authorisation file.",
       docs:[
-        d("Complete technical file for the modification (Technical File)", ["UE2018545"]),
-        d("AESF modification notification form with technical annexes, per Guide O-02.02-02-GU-01", ["FORMMOD","GUIA"]),
-        d('Verification declaration for the "Onboard Control-Command and Signalling" subsystem (DoV CCS OB)', ["ETILOC"]),
-        d("Report from the Notified Body (NoBo) or Designated Body (DeBo), if applicable", ["ETILOC"]),
-        d("Safety Assessment Report (CSM-RA), if the modification is significant to safety", ["CSMRA"]),
-        d("Report from the Assessment Body (AsBo), if applicable", ["CSMRA"]),
-        d("Update of the vehicle type Technical File with the new configuration", ["ERATV"]),
-        d("Documentation evidencing compliance with ET 03.365.008.6 (Onboard ASFA Digital)", ["ET036"]),
-        d("Documentation evidencing compliance with IF MR ALC-20 (national requirements)", ["IFMR"]),
-        d("Formal authorisation application through the ERA One-Stop Shop (OSS) or to AESF", ["OSS","UE2018545"]),
-        d("Documentation in Spanish for AESF's assessment as NSA for the area of use (RFIG)", ["UE2018545"]),
-        d("Registration of the new type/variant/version in the ERATV (ERA Vehicle Type Register)", ["ERATV"]),
+        d("Complete technical file for the modification (Technical File)", ["UE2018545"],
+          { basisLevel:"verified", basis:"Regulation (EU) 2018/545, Annex I — general structure confirmed via official sources; exact clause numbering not itemised here.",
+            compendium:["Vehicle/type technical description","TSI & National Technical Rules (NNTR) conformity declarations and certificates","Independent risk-assessment records (if applicable)","Network compatibility documentation","Conditions of use and operational restrictions"] }),
+        d("AESF modification notification form with technical annexes, per Guide O-02.02-02-GU-01", ["FORMMOD","GUIA"],
+          { basisLevel:"verified", basis:"AESF Modification Notification Form (Formulario_modificaciones_v1_r3), Section 6 \"Annexes\" — confirmed real document requiring supporting technical annexes.",
+            compendium:["Modification notification form (sections 1-5)","Annex 6 — supporting technical documentation"] }),
+        d('Verification declaration for the "Onboard Control-Command and Signalling" subsystem (DoV CCS OB)', ["ETILOC"],
+          { basisLevel:"general", basis:"Directive (EU) 2016/797 — verification declaration regime for subsystems, based on the NoBo/DeBo certificate and technical file; exact article not verified this session." }),
+        d("Report from the Notified Body (NoBo) or Designated Body (DeBo), if applicable", ["ETILOC"],
+          { owner:"NOBO", basisLevel:"verified", basis:"IF MR ALC-20, Annex C, Table C.2, index [22] — confirmed requirement for a Designated Body certificate for the onboard ASFA Digital equipment." }),
+        d("Safety Assessment Report (CSM-RA), if the modification is significant to safety", ["CSMRA"],
+          { basisLevel:"verified", basis:"Regulation (EU) 402/2013, Art. 4 — confirmed significance-assessment basis; full risk assessment required once classified as significant." }),
+        d("Report from the Assessment Body (AsBo), if applicable", ["CSMRA"],
+          { owner:"ASBO", basisLevel:"general", basis:"Regulation (EU) 402/2013 — independent assessment body regime; specific article not verified this session." }),
+        d("Update of the vehicle type Technical File with the new configuration", ["ERATV"],
+          { basisLevel:"verified", basis:"Regulation (EU) 2018/545, Annex I — same structure as the initial Technical File, updated with the new configuration.",
+            compendium:["Updated vehicle/type technical description","Updated TSI/NNTR conformity evidence","Updated network compatibility documentation"] }),
+        d("Documentation evidencing compliance with ET 03.365.008.6 (Onboard ASFA Digital)", ["ET036"],
+          { basisLevel:"general", basis:"ET 03.365.008.6 (whole specification) compliance evidence; specific clause not verified this session.",
+            compendium:["Workshop test reports (Phase 2)","Track test reports (Phase 3)","Designated Body certificate"] }),
+        d("Documentation evidencing compliance with IF MR ALC-20 (national requirements)", ["IFMR"],
+          { basisLevel:"general", basis:"IF MR ALC-20 (whole instruction) compliance evidence; specific clause not verified this session.",
+            compendium:["Workshop test reports (Phase 2)","Track test reports (Phase 3)","Designated Body certificate"] }),
+        d("Formal authorisation application through the ERA One-Stop Shop (OSS) or to AESF", ["OSS","UE2018545"],
+          { basisLevel:"general", basis:"Regulation (EU) 2018/545 — OSS submission process, general; specific article not verified this session." }),
+        d("Documentation in Spanish for AESF's assessment as NSA for the area of use (RFIG)", ["UE2018545"],
+          { basisLevel:"general", basis:"Regulation (EU) 2018/545 — national-language requirement for NSA assessment, general; specific article not verified this session.",
+            compendium:["Spanish translation of the EC declaration","Spanish translation of the DoV","Spanish translation of relevant Technical File extracts","Spanish summary of test reports"] }),
+        d("Registration of the new type/variant/version in the ERATV (ERA Vehicle Type Register)", ["ERATV"],
+          { basisLevel:"general", basis:"ERATV register (European Union Agency for Railways) — registration requirement, general; specific article not verified this session." }),
       ]
     },
     {
       id:5, name:"PHASE 5", title:"Entry into Service and Post-Authorisation Documentation",
       objective:"Complete the requirements for commercial entry into service.",
       docs:[
-        d("Vehicle type authorisation or placing-on-the-market authorisation issued (ERA/AESF)", ["UE2018545"]),
-        d("Vehicle registration in the European Vehicle Register (EVN — European Vehicle Number)", ["ERATV"]),
-        d("Updated driving manual with ASFA Digital procedures for the driver", ["ET036"]),
-        d("Maintenance manual for the onboard ASFA Digital equipment (Maintenance Plan update)", ["ET036"]),
-        d("Notification of the new Maintenance Plan to AESF (update via electronic portal)", []),
-        d("Periodic functional verification procedure for ASFA Digital (driver and workshop checklist)", ["ET036"]),
-        d("ECM (Entity in Charge of Maintenance) record updated with the new subsystem", []),
-        d("Signed commercial entry-into-service record", []),
-        d("Archiving of the complete project file (integrator's document management)", []),
+        d("Vehicle type authorisation or placing-on-the-market authorisation issued (ERA/AESF)", ["UE2018545"],
+          { owner:"AUTH", basisLevel:"general", basis:"Regulation (EU) 2018/545 — decision issued by AESF/ERA; this is the authority's output, not an integrator deliverable." }),
+        d("Vehicle registration in the European Vehicle Register (EVN — European Vehicle Number)", ["ERATV"],
+          { owner:"RU", basisLevel:"general", basis:"National Vehicle Register requirement under Directive (EU) 2016/797; specific article not verified this session. Registered by the keeper/railway undertaking, not engineering." }),
+        d("Updated driving manual with ASFA Digital procedures for the driver", ["ET036"],
+          { owner:"RU", basisLevel:"practice", basis:"Operator training/operations deliverable; technical content is sourced from ET 03.365.008.6, but ownership sits with the railway undertaking." }),
+        d("Maintenance manual for the onboard ASFA Digital equipment (Maintenance Plan update)", ["ET036"],
+          { owner:"ECM", basisLevel:"practice", basis:"Maintenance Plan update per ET 03.365.008.6 content requirements; ownership sits with the maintenance entity, not engineering." }),
+        d("Notification of the new Maintenance Plan to AESF (update via electronic portal)", [],
+          { owner:"ECM", basisLevel:"practice", basis:"Administrative notification via AESF's electronic office; no single specific article verified this session." }),
+        d("Periodic functional verification procedure for ASFA Digital (driver and workshop checklist)", ["ET036"],
+          { owner:"ECM", basisLevel:"practice", basis:"ET 03.365.008.6 content requirements for periodic checks; ownership sits with maintenance/workshops, driver checklist portion with operations." }),
+        d("ECM (Entity in Charge of Maintenance) record updated with the new subsystem", [],
+          { owner:"ECM", basisLevel:"general", basis:"Regulation (EU) 2019/779 — ECM certification scheme, general; specific article not verified this session." }),
+        d("Signed commercial entry-into-service record", [],
+          { owner:"RU", basisLevel:"practice", basis:"Formal act of the railway undertaking placing the vehicle in commercial service." }),
+        d("Archiving of the complete project file (integrator's document management)", [],
+          { basisLevel:"practice", basis:"Integrator's document-management practice.",
+            compendium:["All documents produced across Phases 0–5 of this tracker"] }),
       ]
     },
   ]
@@ -557,6 +690,17 @@ function phaseDotColor(status){
   return "var(--pending)";
 }
 
+function populateOwnerFilter(){
+  const sel = document.getElementById("filter-owner");
+  if(sel.options.length>1) return;
+  Object.entries(OWNERS).forEach(([code,o])=>{
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = o.icon+" "+o.label;
+    sel.appendChild(opt);
+  });
+}
+
 function renderKPIs(){
   const docs = allDocs().map(x=>x.doc);
   const total = docs.length;
@@ -565,6 +709,7 @@ function renderKPIs(){
   const pending = docs.filter(x=>x.status==="Pending").length;
   const inProgress = docs.filter(x=>x.status==="In Progress"||x.status==="Under Review").length;
   const notApplicable = docs.filter(x=>x.status==="Not Applicable").length;
+  const engineeringCount = docs.filter(x=>x.owner==="ENG").length;
   const denom = total - notApplicable || 1;
   const pct = Math.round((completed/denom)*100);
 
@@ -576,6 +721,7 @@ function renderKPIs(){
   const kpibar = document.getElementById("kpibar");
   kpibar.innerHTML = `
     <div class="kpi total"><div class="kpi-label">Total documents</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi engineering"><div class="kpi-label">Engineering-owned</div><div class="kpi-value">${engineeringCount}/${total}</div></div>
     <div class="kpi completed"><div class="kpi-label">Completed</div><div class="kpi-value">${completed}</div></div>
     <div class="kpi in-progress"><div class="kpi-label">In progress</div><div class="kpi-value">${inProgress}</div></div>
     <div class="kpi pending"><div class="kpi-label">Pending</div><div class="kpi-value">${pending}</div></div>
@@ -645,6 +791,7 @@ function renderDocs(){
   const list = document.getElementById("doc-list");
   const search = document.getElementById("search-input").value.toLowerCase();
   const statusFilter = document.getElementById("filter-status").value;
+  const ownerFilter = document.getElementById("filter-owner").value;
 
   let entries = allDocs();
   if(activePhaseId!=='all'){
@@ -655,6 +802,9 @@ function renderDocs(){
   }
   if(statusFilter){
     entries = entries.filter(e=>e.doc.status===statusFilter);
+  }
+  if(ownerFilter){
+    entries = entries.filter(e=>e.doc.owner===ownerFilter);
   }
   if(currentView==="pending") entries = entries.filter(e=>e.doc.status==="Pending");
   if(currentView==="blocked") entries = entries.filter(e=>e.doc.status==="Blocked");
@@ -671,13 +821,21 @@ function renderDocs(){
       if(!n) return "";
       return `<span class="norm-badge">${n.short}<span class="tooltip">${n.full}</span></span>`;
     }).join(" ");
+    const owner = OWNERS[doc.owner] || OWNERS.ENG;
+    const basisMeta = BASIS_LEVELS[doc.basisLevel] || BASIS_LEVELS.practice;
+    const compendiumBox = (doc.compendium && doc.compendium.length)
+      ? `<div class="compendium-box"><b>📦 Compendium of ${doc.compendium.length} documents:</b><ul>${doc.compendium.map(c=>`<li>${escapeHtml(c)}</li>`).join("")}</ul></div>`
+      : "";
     return `
     <div class="doc-card ${statusClass(doc.status)}" data-id="${doc.id}">
       <div class="doc-card-top">
         <div class="doc-name"><span class="doc-icon">${statusIcon(doc.status)}</span>${doc.name}
           ${activePhaseId==='all' ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">${phase.name} — ${phase.title}</div>`:""}
         </div>
-        <span class="status-pill ${statusClass(doc.status)}">${doc.status}</span>
+        <div class="doc-badges">
+          <span class="owner-badge" style="background:${owner.color};color:${owner.text}">${owner.icon} ${owner.label}</span>
+          <span class="status-pill ${statusClass(doc.status)}">${doc.status}</span>
+        </div>
       </div>
       <div class="doc-fields">
         <div class="doc-field">
@@ -700,6 +858,11 @@ function renderDocs(){
         </div>
       </div>
       <div>${normBadges}</div>
+      <div class="basis-line">
+        <span class="basis-tag level-${doc.basisLevel}">${basisMeta.icon} ${basisMeta.label}</span>
+        <span class="basis-text">${escapeHtml(doc.basis)}</span>
+      </div>
+      ${compendiumBox}
     </div>`;
   }).join("");
 }
@@ -736,6 +899,7 @@ function updateDoc(id, field, value){
 }
 
 function render(){
+  populateOwnerFilter();
   renderKPIs();
   renderSidebar();
   renderPhaseHeader();
@@ -806,7 +970,8 @@ async function exportPDFReport(){
 
   writeLines("ASFA Digital @ Vectron", {size:18, bold:true, gapAfter:6});
   writeLines("Integration & certification documentation report — "+scope, {size:11, gapAfter:2});
-  writeLines("Generated: "+new Date().toLocaleString('en-GB'), {size:9, gapAfter:16});
+  writeLines("Generated: "+new Date().toLocaleString('en-GB'), {size:9, gapAfter:2});
+  writeLines("Note: regulatory basis entries tagged \"General reference\" or \"Engineering practice\" have not been fully verified against primary sources — confirm with AESF / a rail authorisation specialist before submission.", {size:8, gapAfter:16});
 
   let entries = allDocs();
   if(activePhaseId!=='all') entries = entries.filter(e=>e.phase.id===activePhaseId);
@@ -818,12 +983,18 @@ async function exportPDFReport(){
       writeLines(phase.name+" — "+phase.title, {size:13, bold:true, gapAfter:8});
       lastPhaseId = phase.id;
     }
-    writeLines("• "+d.name, {size:10, bold:true, gapAfter:2});
+    const owner = OWNERS[d.owner] || OWNERS.ENG;
+    const basisMeta = BASIS_LEVELS[d.basisLevel] || BASIS_LEVELS.practice;
+    writeLines("• "+d.name+"  ["+owner.label+"]", {size:10, bold:true, gapAfter:2});
     const norms = d.norms.map(code => (NORMS[code]||{}).short).filter(Boolean).join(", ");
     writeLines(
       "Status: "+d.status+"   ·   Responsible: "+(d.responsible||"—")+"   ·   Due date: "+(d.deadline||"—")+(norms?"   ·   Regulatory refs: "+norms:""),
       {size:9, indent:12, gapAfter:2}
     );
+    writeLines("Basis ("+basisMeta.label+"): "+d.basis, {size:8, indent:12, gapAfter:2});
+    if(d.compendium && d.compendium.length){
+      writeLines("Compendium of "+d.compendium.length+": "+d.compendium.join("; "), {size:8, indent:12, gapAfter:2});
+    }
     if(d.notes) writeLines("Notes: "+d.notes, {size:9, indent:12, gapAfter:2});
     y += 6;
   });
