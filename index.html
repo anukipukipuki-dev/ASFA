@@ -275,6 +275,7 @@ main#content{flex:1;overflow-y:auto;padding:20px 24px;}
 #print-report-title{display:none;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -966,62 +967,278 @@ async function exportPDFReport(){
   }
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit:"pt", format:"a4" });
+  if(typeof pdf.autoTable !== "function"){
+    window.print();
+    return;
+  }
   const marginX = 40;
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const maxWidth = pageWidth - marginX*2;
-  let y = 54;
+  const contentWidth = pageWidth - marginX*2;
 
-  function ensureSpace(nLines, lineHeight){
-    if(y + nLines*lineHeight > pageHeight - 40){
-      pdf.addPage();
-      y = 54;
-    }
+  function hexRgb(hex){
+    const h = hex.replace("#","");
+    return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
   }
-  function writeLines(text, {size=10, bold=false, indent=0, gapAfter=4}={}){
-    pdf.setFontSize(size);
-    pdf.setFont(undefined, bold?"bold":"normal");
-    const lines = pdf.splitTextToSize(text, maxWidth - indent);
-    const lineHeight = size*1.3;
-    ensureSpace(lines.length, lineHeight);
-    pdf.text(lines, marginX+indent, y);
-    y += lines.length*lineHeight + gapAfter;
-  }
+  const NAVY = hexRgb("#0D1B2A");
+  const ACCENT = hexRgb("#F5C518");
+  const TEXT_DARK = hexRgb("#16222E");
+  const TEXT_GRAY = hexRgb("#6E7C89");
+  const BORDER = hexRgb("#D9DEE3");
+  const STATUS_HEX = {
+    "Pending":"#6B7A8D", "In Progress":"#3D8BCD", "Under Review":"#F0A500",
+    "Completed":"#27AE60", "Blocked":"#E74C3C", "Not Applicable":"#4A5568"
+  };
+  const BASIS_HEX = { verified:"#1E8449", general:"#B7791F", practice:"#6E7C89" };
 
-  const scope = activePhaseId==='all'
-    ? "All phases"
-    : (STATE.phases.find(p=>p.id===activePhaseId)||{}).title || "";
-
-  writeLines("ASFA Digital @ Vectron", {size:18, bold:true, gapAfter:6});
-  writeLines("Integration & certification documentation report — "+scope, {size:11, gapAfter:2});
-  writeLines("Generated: "+new Date().toLocaleString('en-GB'), {size:9, gapAfter:2});
-  writeLines("Note: regulatory basis entries tagged \"General reference\" or \"Engineering practice\" have not been fully verified against primary sources — confirm with AESF / a rail authorisation specialist before submission.", {size:8, gapAfter:16});
-
+  const scopedPhase = activePhaseId==='all' ? null : STATE.phases.find(p=>p.id===activePhaseId);
+  const scopeLabel = scopedPhase ? `${scopedPhase.name} — ${scopedPhase.title}` : "All phases";
+  const scopedPhases = activePhaseId==='all' ? STATE.phases : (scopedPhase ? [scopedPhase] : []);
   let entries = allDocs();
   if(activePhaseId!=='all') entries = entries.filter(e=>e.phase.id===activePhaseId);
+  const docsInScope = entries.map(e=>e.doc);
+
+  const total = docsInScope.length;
+  const completed = docsInScope.filter(x=>x.status==="Completed").length;
+  const blocked = docsInScope.filter(x=>x.status==="Blocked").length;
+  const pending = docsInScope.filter(x=>x.status==="Pending").length;
+  const inProgress = docsInScope.filter(x=>x.status==="In Progress"||x.status==="Under Review").length;
+  const notApplicable = docsInScope.filter(x=>x.status==="Not Applicable").length;
+  const denom = total - notApplicable || 1;
+  const pct = Math.round((completed/denom)*100);
+
+  function wrapped(text, size, maxW){
+    pdf.setFontSize(size);
+    return pdf.splitTextToSize(text, maxW);
+  }
+
+  /* ============ COVER / SUMMARY PAGE ============ */
+  pdf.setFillColor(...NAVY);
+  pdf.rect(0,0,pageWidth,118,"F");
+  pdf.setTextColor(...ACCENT);
+  pdf.setFont(undefined,"bold"); pdf.setFontSize(25);
+  pdf.text("ASFA Digital @ Vectron", marginX, 52);
+  pdf.setTextColor(235,240,244);
+  pdf.setFont(undefined,"normal"); pdf.setFontSize(12);
+  pdf.text("Integration & Certification Documentation Report", marginX, 74);
+  pdf.setFontSize(9);
+  pdf.setTextColor(190,205,215);
+  pdf.text("Scope: "+scopeLabel+"   ·   Generated: "+new Date().toLocaleString("en-GB"), marginX, 96);
+
+  let y = 150;
+  pdf.setTextColor(...TEXT_DARK);
+  pdf.setFont(undefined,"bold"); pdf.setFontSize(13);
+  pdf.text("Overall progress", marginX, y);
+  pdf.setTextColor(...hexRgb("#27AE60"));
+  pdf.setFontSize(26);
+  pdf.text(pct+"%", pageWidth-marginX-50, y);
+  y += 16;
+  const barW = contentWidth, barH = 14;
+  pdf.setFillColor(230,233,237);
+  pdf.roundedRect(marginX, y, barW, barH, 7,7,"F");
+  pdf.setFillColor(...hexRgb("#27AE60"));
+  pdf.roundedRect(marginX, y, Math.max(barW*pct/100, barH), barH, 7,7,"F");
+  y += barH + 26;
+
+  const kpiDefs = [
+    {label:"Total documents", value:total, color:"#16222E"},
+    {label:"Completed", value:completed, color:"#27AE60"},
+    {label:"In progress", value:inProgress, color:"#3D8BCD"},
+    {label:"Pending", value:pending, color:"#6B7A8D"},
+    {label:"Blocked", value:blocked, color:"#E74C3C"},
+  ];
+  const boxGap = 10;
+  const boxW = (contentWidth - boxGap*(kpiDefs.length-1)) / kpiDefs.length;
+  const boxH = 56;
+  kpiDefs.forEach((k,i)=>{
+    const bx = marginX + i*(boxW+boxGap);
+    pdf.setDrawColor(...BORDER);
+    pdf.setFillColor(250,250,251);
+    pdf.roundedRect(bx, y, boxW, boxH, 6,6,"FD");
+    pdf.setTextColor(...hexRgb("#8592A0"));
+    pdf.setFont(undefined,"normal"); pdf.setFontSize(7.5);
+    pdf.text(k.label.toUpperCase(), bx+10, y+18, {maxWidth:boxW-20});
+    pdf.setTextColor(...hexRgb(k.color));
+    pdf.setFont(undefined,"bold"); pdf.setFontSize(19);
+    pdf.text(String(k.value), bx+10, y+42);
+  });
+  y += boxH + 28;
+
+  pdf.setTextColor(...TEXT_DARK);
+  pdf.setFont(undefined,"bold"); pdf.setFontSize(12);
+  pdf.text("Phase status", marginX, y);
+  y += 8;
+
+  const phaseRows = scopedPhases.map(p=>{
+    const pr = phaseProgress(p);
+    const done = p.docs.filter(dd=>dd.status==="Completed").length;
+    return [p.name, p.title, pr.status, done+"/"+p.docs.length, pr.pct+"%"];
+  });
+  pdf.autoTable({
+    startY:y,
+    margin:{left:marginX,right:marginX},
+    head:[["Phase","Title","Status","Docs","Progress"]],
+    body:phaseRows,
+    theme:"grid",
+    styles:{ font:"helvetica", fontSize:9, textColor:TEXT_DARK, lineColor:BORDER, lineWidth:0.5, cellPadding:6 },
+    headStyles:{ fillColor:NAVY, textColor:ACCENT, fontStyle:"bold" },
+    columnStyles:{ 0:{cellWidth:55}, 2:{cellWidth:75}, 3:{cellWidth:45,halign:"center"}, 4:{cellWidth:60,halign:"center"} },
+    didParseCell:function(data){
+      if(data.section==="body" && data.column.index===2){
+        const hex = STATUS_HEX[data.cell.raw] || STATUS_HEX.Pending;
+        data.cell.styles.textColor = hexRgb(hex);
+        data.cell.styles.fontStyle = "bold";
+      }
+    }
+  });
+  y = pdf.lastAutoTable.finalY + 22;
+
+  if(y > pageHeight-170){ pdf.addPage(); y = 60; }
+  pdf.setTextColor(...TEXT_DARK);
+  pdf.setFont(undefined,"bold"); pdf.setFontSize(12);
+  pdf.text("Responsibility breakdown", marginX, y);
+  y += 8;
+  const ownerRows = Object.entries(OWNERS).map(([code,o])=>{
+    const count = docsInScope.filter(x=>x.owner===code).length;
+    return [o.label, String(count), total? Math.round(count/total*100)+"%" : "0%", count];
+  }).filter(r=>r[3]>0).map(r=>r.slice(0,3));
+  pdf.autoTable({
+    startY:y,
+    margin:{left:marginX,right:marginX},
+    head:[["Owner","Documents","Share"]],
+    body:ownerRows,
+    theme:"grid",
+    styles:{ font:"helvetica", fontSize:9, textColor:TEXT_DARK, lineColor:BORDER, lineWidth:0.5, cellPadding:6 },
+    headStyles:{ fillColor:NAVY, textColor:ACCENT, fontStyle:"bold" },
+    columnStyles:{ 1:{halign:"center",cellWidth:80}, 2:{halign:"center",cellWidth:80} }
+  });
+  y = pdf.lastAutoTable.finalY + 16;
+
+  const noteText = "Regulatory basis entries tagged \"General reference\" or \"Engineering practice\" have not been fully verified against primary sources — confirm with AESF / a rail authorisation specialist before submission.";
+  const noteLines = wrapped(noteText, 8, contentWidth-20);
+  const noteH = noteLines.length*11 + 14;
+  if(y + noteH > pageHeight-50){ pdf.addPage(); y = 60; }
+  pdf.setFillColor(...hexRgb("#FFF6E0"));
+  pdf.setDrawColor(...hexRgb("#F0A500"));
+  pdf.roundedRect(marginX, y, contentWidth, noteH, 4,4,"FD");
+  pdf.setTextColor(...hexRgb("#7A5A00"));
+  pdf.setFont(undefined,"normal"); pdf.setFontSize(8);
+  pdf.text(noteLines, marginX+10, y+16);
+
+  /* ============ DETAILED DOCUMENT LISTING ============ */
+  pdf.addPage();
+  y = 60;
+
+  function ensureSpace(h){
+    if(y + h > pageHeight - 50){
+      pdf.addPage();
+      y = 60;
+    }
+  }
 
   let lastPhaseId = null;
   entries.forEach(({phase, doc:d})=>{
     if(phase.id!==lastPhaseId){
-      y += 6;
-      writeLines(phase.name+" — "+phase.title, {size:13, bold:true, gapAfter:8});
+      ensureSpace(46);
+      pdf.setFillColor(...NAVY);
+      pdf.rect(marginX, y, contentWidth, 24, "F");
+      pdf.setTextColor(...ACCENT);
+      pdf.setFont(undefined,"bold"); pdf.setFontSize(11);
+      pdf.text(phase.name+" — "+phase.title, marginX+8, y+16);
+      y += 24;
+      const pr = phaseProgress(phase);
+      const objLines = wrapped(phase.objective+"   ("+pr.status+" · "+pr.pct+"% complete)", 8, contentWidth);
+      pdf.setFont(undefined,"italic"); pdf.setFontSize(8);
+      pdf.setTextColor(...TEXT_GRAY);
+      pdf.text(objLines, marginX, y+10);
+      y += objLines.length*10 + 12;
       lastPhaseId = phase.id;
     }
+
     const owner = OWNERS[d.owner] || OWNERS.ENG;
     const basisMeta = BASIS_LEVELS[d.basisLevel] || BASIS_LEVELS.practice;
-    writeLines("• "+d.name+"  ["+owner.label+"]", {size:10, bold:true, gapAfter:2});
-    const norms = d.norms.map(code => (NORMS[code]||{}).short).filter(Boolean).join(", ");
-    writeLines(
-      "Status: "+d.status+"   ·   Responsible: "+(d.responsible||"—")+"   ·   Due date: "+(d.deadline||"—")+(norms?"   ·   Regulatory refs: "+norms:""),
-      {size:9, indent:12, gapAfter:2}
-    );
-    writeLines("Basis ("+basisMeta.label+"): "+d.basis, {size:8, indent:12, gapAfter:2});
+    const statusHex = STATUS_HEX[d.status] || STATUS_HEX.Pending;
+
+    const nameLines = wrapped(d.name, 10, contentWidth-18);
+    const norms = d.norms.map(code=>(NORMS[code]||{}).short).filter(Boolean).join(", ");
+    const metaLine = "Responsible: "+(d.responsible||"—")+"   ·   Due: "+(d.deadline||"—")+(norms?"   ·   Refs: "+norms:"");
+    const metaLines = wrapped(metaLine, 8, contentWidth-18);
+    const basisLines = wrapped(basisMeta.label+": "+d.basis, 8, contentWidth-18);
+    let compLines = [];
     if(d.compendium && d.compendium.length){
-      writeLines("Compendium of "+d.compendium.length+": "+d.compendium.join("; "), {size:8, indent:12, gapAfter:2});
+      compLines = wrapped("Compendium ("+d.compendium.length+"): "+d.compendium.join("; "), 8, contentWidth-26);
     }
-    if(d.notes) writeLines("Notes: "+d.notes, {size:9, indent:12, gapAfter:2});
-    y += 6;
+    let noteLines2 = [];
+    if(d.notes){
+      noteLines2 = wrapped("Notes: "+d.notes, 8, contentWidth-18);
+    }
+    const blockH = 16 + nameLines.length*12 + 16 + metaLines.length*10 + 4 + basisLines.length*10 + 4
+      + (compLines.length? compLines.length*10+4 : 0) + (noteLines2.length? noteLines2.length*10+4 : 0) + 8;
+
+    ensureSpace(blockH+8);
+    const blockTop = y;
+    pdf.setFillColor(...hexRgb(statusHex));
+    pdf.rect(marginX, blockTop, 4, blockH, "F");
+    pdf.setDrawColor(...BORDER);
+    pdf.setFillColor(252,252,253);
+    pdf.rect(marginX+4, blockTop, contentWidth-4, blockH, "FD");
+
+    let ty = blockTop + 14;
+    pdf.setTextColor(...TEXT_DARK);
+    pdf.setFont(undefined,"bold"); pdf.setFontSize(10);
+    pdf.text(nameLines, marginX+14, ty);
+    ty += nameLines.length*12 + 4;
+
+    pdf.setFontSize(7.5);
+    const statusLabel = d.status.toUpperCase();
+    const statusW = pdf.getTextWidth(statusLabel)+10;
+    pdf.setFillColor(...hexRgb(statusHex));
+    pdf.roundedRect(marginX+14, ty-8, statusW, 12, 3,3,"F");
+    pdf.setTextColor(255,255,255);
+    pdf.setFont(undefined,"bold");
+    pdf.text(statusLabel, marginX+19, ty+1);
+
+    const ownerLabel = owner.label.toUpperCase();
+    const ownerW = pdf.getTextWidth(ownerLabel)+10;
+    pdf.setFillColor(...hexRgb(owner.color));
+    pdf.roundedRect(marginX+14+statusW+6, ty-8, ownerW, 12, 3,3,"F");
+    pdf.setTextColor(...hexRgb(owner.text));
+    pdf.text(ownerLabel, marginX+14+statusW+11, ty+1);
+    ty += 16;
+
+    pdf.setFont(undefined,"normal"); pdf.setFontSize(8);
+    pdf.setTextColor(...TEXT_GRAY);
+    pdf.text(metaLines, marginX+14, ty);
+    ty += metaLines.length*10 + 4;
+
+    pdf.setFont(undefined,"italic");
+    pdf.setTextColor(...hexRgb(BASIS_HEX[d.basisLevel]||BASIS_HEX.practice));
+    pdf.text(basisLines, marginX+14, ty);
+    ty += basisLines.length*10 + 4;
+
+    if(compLines.length){
+      pdf.setFont(undefined,"normal"); pdf.setTextColor(...TEXT_GRAY);
+      pdf.text(compLines, marginX+22, ty);
+      ty += compLines.length*10 + 4;
+    }
+    if(noteLines2.length){
+      pdf.setFont(undefined,"normal"); pdf.setTextColor(...TEXT_DARK);
+      pdf.text(noteLines2, marginX+14, ty);
+    }
+
+    y = blockTop + blockH + 8;
   });
+
+  const totalPages = pdf.internal.getNumberOfPages();
+  for(let i=1;i<=totalPages;i++){
+    pdf.setPage(i);
+    pdf.setDrawColor(...BORDER);
+    pdf.line(marginX, pageHeight-34, pageWidth-marginX, pageHeight-34);
+    pdf.setFont(undefined,"normal"); pdf.setFontSize(8);
+    pdf.setTextColor(...TEXT_GRAY);
+    pdf.text("ASFA Digital @ Vectron — Integration & Certification Documentation Report", marginX, pageHeight-20);
+    pdf.text("Page "+i+" of "+totalPages, pageWidth-marginX-60, pageHeight-20);
+  }
 
   const filename = "asfa-vectron-report-"+new Date().toISOString().slice(0,10)+".pdf";
   const blob = pdf.output("blob");
