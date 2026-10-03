@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Mic Control</string>
+
+    <string name="status_enabled">Micrófono: ACTIVADO</string>
+    <string name="status_disabled">Micrófono: DESACTIVADO</string>
+    <string name="status_unknown">Micrófono: estado desconocido</string>
+
+    <string name="btn_turn_off">Apagar micrófono</string>
+    <string name="btn_turn_on">Encender micrófono</string>
+
+    <string name="not_owner_title">Falta activar el modo Propietario</string>
+    <string name="not_owner_body">Para bloquear el micrófono de todo el sistema, esta app debe ser \"Device Owner\". Es un único comando por USB, sin rootear el teléfono:\n\n1. Activa Opciones de desarrollador y Depuración USB.\n2. Conecta el teléfono al PC.\n3. Ejecuta:\n\nadb shell dpm set-device-owner com.asfa.miccontrol/.MicAdminReceiver\n\nRequisito: no debe haber otras cuentas de usuario configuradas en el teléfono.</string>
+    <string name="copy_command">Copiar comando adb</string>
+    <string name="open_settings">Abrir ajustes de la app</string>
+    <string name="command_copied">Comando copiado al portapapeles</string>
+    <string name="dismiss">Entendido</string>
+</resources>

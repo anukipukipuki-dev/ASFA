@@ -1,0 +1,11 @@
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+.kotlin/
+
+# Gradle wrapper jar is generated in CI; keep the repo lean
+gradle/wrapper/gradle-wrapper.jar
