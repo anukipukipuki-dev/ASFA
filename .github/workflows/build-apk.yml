@@ -26,6 +26,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Avoid the obsolete, removed "tools" package (default of this action),
+          # which fails with "Failed to find package 'tools'". The SDK platforms
+          # and build-tools are fetched by Gradle on demand.
+          packages: ""
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
