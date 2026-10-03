@@ -1,0 +1,66 @@
+name: Build APK
+
+on:
+  push:
+    branches:
+      - "claude/low-level-microphone-control-oec1ok"
+    paths:
+      - "app/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
+
+# Needed so the workflow can publish the APK as a Release.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # Avoid the obsolete, removed "tools" package (default of this action),
+          # which fails with "Failed to find package 'tools'". The SDK platforms
+          # and build-tools are fetched by Gradle on demand.
+          packages: ""
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate Gradle wrapper
+        run: gradle wrapper --gradle-version 8.9
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mic-control-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      # Publishes the APK to a rolling "latest" Release, which gives a direct
+      # download link that works from a phone browser (no login needed on a
+      # public repo). Find it under the repo's "Releases" section.
+      - name: Publish APK to Releases
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Mic Control — última build"
+          body: "APK de depuración generado automáticamente. Descarga app-debug.apk e instálalo en el móvil."
+          files: app/build/outputs/apk/debug/*.apk
+          fail_on_unmatched_files: true
