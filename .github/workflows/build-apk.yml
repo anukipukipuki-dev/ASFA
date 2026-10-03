@@ -11,6 +11,10 @@ on:
       - ".github/workflows/build-apk.yml"
   workflow_dispatch:
 
+# Needed so the workflow can publish the APK as a Release.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,3 +51,16 @@ jobs:
           name: mic-control-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # Publishes the APK to a rolling "latest" Release, which gives a direct
+      # download link that works from a phone browser (no login needed on a
+      # public repo). Find it under the repo's "Releases" section.
+      - name: Publish APK to Releases
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Mic Control — última build"
+          body: "APK de depuración generado automáticamente. Descarga app-debug.apk e instálalo en el móvil."
+          files: app/build/outputs/apk/debug/*.apk
+          fail_on_unmatched_files: true
