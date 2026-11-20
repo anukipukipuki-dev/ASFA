@@ -11,9 +11,11 @@ y sombras.
 
 ## Cómo ejecutarla
 
-No necesita instalación ni internet. Abre `index.html` con Chrome o Edge (doble clic).
+**Opción más sencilla:** copia `dist/IntegradorVisual.html` a cualquier ordenador y ábrelo
+con doble clic, en Chrome o Edge. Es un único archivo con todo dentro y funciona sin internet.
 
-Si el navegador bloquea algo al abrirla como archivo, sírvela en local:
+**Desde el código fuente:** abre `index.html`. Si el navegador bloquea algo al abrirlo como
+archivo, sírvelo en local:
 
 ```bash
 cd integrador-visual
