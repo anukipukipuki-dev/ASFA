@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrador Visual</title>
+<meta name="description" content="Gemelo visual: integra equipos en fotos reales de cabinas, armarios y racks con perspectiva, escala real y ajuste de luz.">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <!-- ============================ Barra lateral ============================ -->
+  <aside id="sidebar">
+    <header class="brand">
+      <div class="logo">IV</div>
+      <div>
+        <h1>Integrador Visual</h1>
+        <p>Gemelo visual de integración de equipos</p>
+      </div>
+    </header>
+
+    <!-- 1. Proyecto -->
+    <section class="panel" data-step="1">
+      <h2><span class="num">1</span> Proyecto</h2>
+      <label>Título <input id="projTitle" type="text" value="Integración de equipo"></label>
+      <label>Notas <textarea id="projNotes" rows="2" placeholder="Ubicación, alcance, observaciones…"></textarea></label>
+      <div class="row">
+        <button id="btnSaveProj" class="ghost">💾 Guardar proyecto</button>
+        <label class="btn ghost">📂 Abrir proyecto<input id="fileProj" type="file" accept=".json,application/json" hidden></label>
+      </div>
+    </section>
+
+    <!-- 2. Foto base -->
+    <section class="panel" data-step="2">
+      <h2><span class="num">2</span> Foto real (cabina, armario, rack…)</h2>
+      <label class="btn primary block">📷 Cargar foto base<input id="fileBg" type="file" accept="image/*" hidden></label>
+      <p id="bgInfo" class="muted small">Sin foto cargada. También puedes arrastrar una imagen sobre el lienzo.</p>
+    </section>
+
+    <!-- 3. Calibración -->
+    <section class="panel" data-step="3">
+      <h2><span class="num">3</span> Superficie de montaje y escala</h2>
+      <p class="small muted">Marca las <b>4 esquinas de un rectángulo real</b> que esté en la superficie donde irá el equipo (el hueco del pupitre, la puerta del armario, los montantes del rack…) e indica sus medidas reales. Así la app conoce la perspectiva y los milímetros.</p>
+      <label>Preajuste
+        <select id="refPreset">
+          <option value="custom">Personalizado</option>
+          <option value="rack">Rack 19" (482,6 mm × N U)</option>
+          <option value="rackin">Rack 19" interior entre montantes (450 mm × N U)</option>
+          <option value="a4">Hoja A4 pegada como referencia (297 × 210)</option>
+        </select>
+      </label>
+      <div class="grid2">
+        <label>Ancho real (mm) <input id="refW" type="number" min="1" step="0.1" value="600"></label>
+        <label>Alto real (mm) <input id="refH" type="number" min="1" step="0.1" value="400"></label>
+      </div>
+      <label id="refURow" class="hidden">Unidades de rack (U) <input id="refU" type="number" min="1" step="1" value="10"></label>
+      <button id="btnRef" class="primary block">✛ Marcar 4 esquinas de la referencia</button>
+
+      <details class="sub">
+        <summary>Zona disponible para el equipo</summary>
+        <label class="check"><input id="zoneUseRef" type="checkbox" checked> La zona disponible es la misma referencia</label>
+        <button id="btnZone" class="ghost block" disabled>✛ Marcar 4 esquinas de la zona disponible</button>
+        <label>Profundidad disponible tras la superficie (mm, opcional) <input id="zoneDepth" type="number" min="0" step="1" placeholder="p. ej. 120"></label>
+      </details>
+
+      <details class="sub">
+        <summary>Cámara (avanzado)</summary>
+        <label class="check"><input id="camAuto" type="checkbox" checked> Estimar la focal automáticamente</label>
+        <label>Focal relativa <span class="val" id="camFVal"></span>
+          <input id="camF" type="range" min="0.4" max="3" step="0.01" value="0.85" disabled></label>
+        <p class="small muted">Afecta a cómo se ven los laterales de los equipos que sobresalen.</p>
+      </details>
+    </section>
+
+    <!-- 4. Equipos -->
+    <section class="panel" data-step="4">
+      <h2><span class="num">4</span> Equipos a integrar</h2>
+      <label class="btn primary block">➕ Añadir equipo (foto)<input id="fileItem" type="file" accept="image/*" hidden></label>
+      <ul id="itemList" class="itemlist"></ul>
+
+      <div id="itemProps" class="hidden">
+        <label>Nombre <input id="itName" type="text"></label>
+        <div class="grid3">
+          <label>Ancho (mm) <input id="itW" type="number" min="1" step="0.1"></label>
+          <label>Alto (mm) <input id="itH" type="number" min="1" step="0.1"></label>
+          <label>Fondo (mm) <input id="itD" type="number" min="0" step="0.1"></label>
+        </div>
+        <label>Preajuste
+          <select id="itPreset">
+            <option value="">—</option>
+            <option value="19">Equipo 19" (ancho 482,6) · indicar U</option>
+          </select>
+        </label>
+        <label id="itURow" class="hidden">Unidades (U) <input id="itU" type="number" min="1" step="1" value="2"></label>
+        <label>Tipo de montaje
+          <select id="itMount">
+            <option value="flush">Empotrado / enrasado (sobresale solo el marco)</option>
+            <option value="surface">Sobre la superficie (sobresale todo el fondo)</option>
+            <option value="recess">Rehundido (queda por detrás de la superficie)</option>
+          </select>
+        </label>
+        <div class="grid2">
+          <label>Sobresale (mm) <input id="itProt" type="number" step="0.5"></label>
+          <label>Junta / holgura (mm) <input id="itGap" type="number" min="0" step="0.1"></label>
+        </div>
+        <div class="grid3">
+          <label>X (mm) <input id="itX" type="number" step="0.5"></label>
+          <label>Y (mm) <input id="itY" type="number" step="0.5"></label>
+          <label>Giro (°) <input id="itRot" type="number" step="0.5"></label>
+        </div>
+        <div class="grid2">
+          <label>Rejilla de ajuste (mm) <input id="itSnap" type="number" min="0" step="0.01" value="0"></label>
+          <label>Color carcasa <span class="inline"><input id="itHousing" type="color" value="#3a3d42"><label class="check tiny"><input id="itHousingAuto" type="checkbox" checked> auto</label></span></label>
+        </div>
+        <div class="row">
+          <button id="btnEditItem" class="ghost">✂️ Recorte y esquinas</button>
+          <button id="btnDupItem" class="ghost">⧉ Duplicar</button>
+          <button id="btnDelItem" class="ghost danger">🗑 Quitar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Realismo -->
+    <section class="panel" data-step="5">
+      <h2><span class="num">5</span> Realismo</h2>
+      <div id="realismItem" class="hidden">
+        <p class="small muted">Ajustes del equipo seleccionado:</p>
+        <div class="slider"><label>Igualar con el entorno <span class="val" data-for="adMatch"></span></label><input id="adMatch" type="range" min="0" max="100" step="1"></div>
+        <div class="slider"><label>Luz local de la foto <span class="val" data-for="adLight"></span></label><input id="adLight" type="range" min="0" max="100" step="1"></div>
+        <div class="slider"><label>Exposición (EV) <span class="val" data-for="adExposure"></span></label><input id="adExposure" type="range" min="-2" max="2" step="0.05"></div>
+        <div class="slider"><label>Contraste <span class="val" data-for="adContrast"></span></label><input id="adContrast" type="range" min="-50" max="50" step="1"></div>
+        <div class="slider"><label>Saturación <span class="val" data-for="adSaturation"></span></label><input id="adSaturation" type="range" min="-100" max="60" step="1"></div>
+        <div class="slider"><label>Temperatura <span class="val" data-for="adTemperature"></span></label><input id="adTemperature" type="range" min="-100" max="100" step="1"></div>
+        <div class="slider"><label>Desenfoque (px) <span class="val" data-for="adBlur"></span></label><input id="adBlur" type="range" min="0" max="4" step="0.05"></div>
+        <div class="slider"><label>Grano <span class="val" data-for="adGrain"></span> <label class="check tiny"><input id="adGrainAuto" type="checkbox"> auto</label></label><input id="adGrain" type="range" min="0" max="14" step="0.1"></div>
+        <div class="slider"><label>Reflejo de cristal <span class="val" data-for="adGloss"></span></label><input id="adGloss" type="range" min="0" max="100" step="1"></div>
+        <div class="slider"><label>Suavizado de borde (px) <span class="val" data-for="adFeather"></span></label><input id="adFeather" type="range" min="0" max="6" step="0.5"></div>
+      </div>
+      <details class="sub" open>
+        <summary>Luz y sombras de la escena</summary>
+        <div class="slider"><label>Dirección de la luz <span class="val" id="lgAzVal"></span></label><input id="lgAz" type="range" min="-180" max="180" step="1" value="-120"></div>
+        <div class="slider"><label>Altura de la luz <span class="val" id="lgElVal"></span></label><input id="lgEl" type="range" min="10" max="85" step="1" value="50"></div>
+        <div class="slider"><label>Intensidad de sombra <span class="val" id="lgOpVal"></span></label><input id="lgOp" type="range" min="0" max="100" step="1" value="55"></div>
+        <div class="slider"><label>Suavidad de sombra <span class="val" id="lgSoftVal"></span></label><input id="lgSoft" type="range" min="0" max="100" step="1" value="55"></div>
+      </details>
+      <details class="sub">
+        <summary>Elementos en primer plano (oclusión)</summary>
+        <p class="small muted">Pinta sobre la foto lo que debe quedar <b>por delante</b> del equipo nuevo (palancas, cables, una puerta, el borde de una moldura…).</p>
+        <div class="row">
+          <button id="btnOccPaint" class="ghost">🖌 Pintar</button>
+          <button id="btnOccErase" class="ghost">🧽 Borrar</button>
+          <button id="btnOccClear" class="ghost danger">Limpiar</button>
+        </div>
+        <div class="slider"><label>Tamaño del pincel <span class="val" id="occRVal"></span></label><input id="occR" type="range" min="3" max="150" step="1" value="30"></div>
+      </details>
+    </section>
+
+    <!-- 6. Exportar -->
+    <section class="panel" data-step="6">
+      <h2><span class="num">6</span> Exportar</h2>
+      <label class="check"><input id="expAnnot" type="checkbox"> Incluir cotas y nombres en la imagen</label>
+      <div class="row wrap">
+        <button id="btnExpJpg" class="primary">🖼 JPEG</button>
+        <button id="btnExpCmp" class="ghost">◧ JPEG antes/después</button>
+        <button id="btnExpPdf" class="primary">📄 Informe PDF</button>
+      </div>
+      <p class="small muted">Se exporta a la resolución completa de la foto original.</p>
+    </section>
+    <footer class="small muted foot">Todo se procesa en local, en tu navegador. Nada sale de tu equipo.</footer>
+  </aside>
+
+  <!-- ============================ Lienzo ============================ -->
+  <main id="stage">
+    <div id="toolbar">
+      <div class="tgroup">
+        <button class="tool active" data-mode="move" title="Mover equipos (V)">✥ Mover</button>
+        <button class="tool" data-mode="pan" title="Desplazar vista (H o barra espaciadora)">✋ Vista</button>
+      </div>
+      <div class="tgroup">
+        <button id="btnFit" class="tool" title="Ajustar a la ventana (F)">⤢ Ajustar</button>
+        <button id="btnZoomOut" class="tool">−</button>
+        <span id="zoomVal" class="zoomval">100%</span>
+        <button id="btnZoomIn" class="tool">+</button>
+      </div>
+      <div class="tgroup">
+        <button id="btnCompare" class="tool" title="Comparar antes/después (C)">◧ Antes / Después</button>
+        <button id="btnHelpers" class="tool active" title="Mostrar ayudas (G)">▦ Ayudas</button>
+      </div>
+    </div>
+    <div id="canvasWrap">
+      <canvas id="view"></canvas>
+      <div id="empty" class="empty">
+        <div>
+          <div class="big">📷</div>
+          <h3>Empieza cargando la foto real</h3>
+          <p>Cabina, pupitre, armario de la sala de máquinas o rack 19".<br>Arrastra aquí un JPG o usa «Cargar foto base».</p>
+        </div>
+      </div>
+      <div id="checks" class="checks hidden"></div>
+    </div>
+    <div id="statusbar"><span id="hint">Carga una foto para empezar.</span><span id="coords"></span></div>
+  </main>
+</div>
+
+<!-- ============================ Editor de equipo ============================ -->
+<div id="editor" class="modal hidden">
+  <div class="modal-box">
+    <header>
+      <h2>Preparar equipo: <span id="edName"></span></h2>
+      <button id="edClose" class="ghost">✕</button>
+    </header>
+    <div class="ed-body">
+      <div class="ed-tools">
+        <h3>Datos reales del equipo</h3>
+        <label>Nombre <input id="edNameIn" type="text"></label>
+        <div class="grid3">
+          <label>Ancho (mm) <input id="edW" type="number" min="1" step="0.1"></label>
+          <label>Alto (mm) <input id="edH" type="number" min="1" step="0.1"></label>
+          <label>Fondo (mm) <input id="edD" type="number" min="0" step="0.1"></label>
+        </div>
+        <p class="small muted">Las medidas de la ficha técnica fijan el tamaño en la foto: la app no lo estira a ojo.</p>
+        <h3>1 · Quitar fondo</h3>
+        <div class="slider"><label>Tolerancia <span class="val" id="edTolVal"></span></label><input id="edTol" type="range" min="2" max="120" step="1" value="32"></div>
+        <button id="edAuto" class="primary block">✨ Quitar fondo automático</button>
+        <button id="edLargest" class="ghost block">◉ Solo objeto principal (rellenar huecos)</button>
+        <button id="edReset" class="ghost block">↺ Restaurar foto completa</button>
+        <div class="tgroup col">
+          <button class="tool edmode" data-ed="wand">🪄 Varita: clic en el fondo a quitar</button>
+          <button class="tool edmode" data-ed="erase">🧽 Pincel borrar</button>
+          <button class="tool edmode" data-ed="restore">🖌 Pincel restaurar</button>
+        </div>
+        <div class="slider"><label>Pincel <span class="val" id="edBrushVal"></span></label><input id="edBrush" type="range" min="2" max="120" step="1" value="20"></div>
+        <h3>2 · Cara frontal</h3>
+        <p class="small muted">Arrastra los 4 puntos a las esquinas de la <b>cara frontal</b> del equipo. Si la foto tiene perspectiva, la app la endereza.</p>
+        <button class="tool edmode block active" data-ed="corners">⬚ Editar esquinas</button>
+        <button id="edCornersAuto" class="ghost block">⤧ Esquinas = contorno del recorte</button>
+        <button id="edCornersFull" class="ghost block">▭ Esquinas = foto completa</button>
+        <div id="edAspect" class="small"></div>
+      </div>
+      <div class="ed-canvas"><canvas id="edCanvas"></canvas></div>
+    </div>
+    <footer>
+      <span class="small muted">Rueda: zoom · Clic derecho / central: desplazar</span>
+      <button id="edDone" class="primary">✔ Usar este equipo</button>
+    </footer>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="js/geometry.js"></script>
+<script src="js/imaging.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
