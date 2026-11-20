@@ -17,6 +17,9 @@
     work: null, workScale: 1, workData: null,
     comp: null,
     ref: { pts: null, W: 600, H: 400 },
+    calib: { method: 'cota', cotas: [], knownAspect: '', f: null, fSrc: '', aspect: null, scale: null, spread: null },
+    exifF: null,          // focal en px leída del EXIF (si existe)
+    ruler: null,          // {a, b} en px de la imagen
     H: null, Hinv: null,  // plano (mm) -> imagen original (px) y su inversa
     zone: { useRef: true, pts: null, depth: null },
     cam: { auto: true, f: 0.85 },
@@ -69,11 +72,45 @@
   const canvasBlob = (c, type, q) => new Promise(r => c.toBlob(r, type, q));
 
   /* ------------------------------ Foto base ------------------------------ */
+  /** Focal equivalente en 35 mm del EXIF -> focal en píxeles (por diagonal). */
+  async function exifFocal(file, w, h) {
+    try {
+      const buf = new DataView(await file.slice(0, 256 * 1024).arrayBuffer());
+      if (buf.getUint16(0) !== 0xFFD8) return null;
+      let o = 2;
+      while (o + 4 < buf.byteLength) {
+        const marker = buf.getUint16(o), len = buf.getUint16(o + 2);
+        if (marker === 0xFFE1 && buf.getUint32(o + 4) === 0x45786966) {
+          const t = o + 10, le = buf.getUint16(t) === 0x4949;
+          const u16 = p => buf.getUint16(t + p, le), u32 = p => buf.getUint32(t + p, le);
+          const readIFD = (p, want) => {
+            const n = u16(p);
+            for (let i = 0; i < n; i++) { const e = p + 2 + i * 12; if (u16(e) === want) return { type: u16(e + 2), val: e + 8 }; }
+            return null;
+          };
+          const exifPtr = readIFD(u32(4), 0x8769);
+          if (!exifPtr) return null;
+          const f35 = readIFD(u32(exifPtr.val), 0xA405);
+          if (!f35) return null;
+          const mm = u16(f35.val);
+          if (!(mm > 8 && mm < 400)) return null;
+          // la diagonal del formato 35 mm (43,27 mm) equivale a la diagonal de la foto
+          return mm * Math.hypot(w, h) / 43.27;
+        }
+        if ((marker & 0xFF00) !== 0xFF00) break;
+        o += 2 + len;
+      }
+    } catch (e) { /* sin EXIF */ }
+    return null;
+  }
+
   async function loadBackground(file, keepScene = false) {
     const img = await Img.loadImage(file);
     S.orig = Img.imageToCanvas(img, ORIG_MAX);
     S.origCtx = S.orig.getContext('2d', { willReadFrequently: true });
     S.bg = { name: file.name || 'foto', w: S.orig.width, h: S.orig.height };
+    S.exifF = await exifFocal(file, S.bg.w, S.bg.h);
+    if (!keepScene) { S.calib.cotas = []; S.ruler = null; }
     S.work = Img.imageToCanvas(S.orig, WORK_MAX);
     S.workScale = S.work.width / S.orig.width;
     S.workData = S.work.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, S.work.width, S.work.height);
@@ -128,22 +165,158 @@
   }
 
   /* ------------------------------ Calibración ------------------------------ */
+  /**
+   * Modo "cota": el rectángulo marcado no tiene medidas conocidas.
+   * Cada cota (2 puntos + mm) se pasa a coordenadas del cuadrado unidad del
+   * rectángulo (du, dv). Su longitud real cumple  L² = W²·du² + H²·dv².
+   *  - Proporción conocida (4:3, 16:9…): una sola cota da la escala.
+   *  - Dos o más cotas en direcciones distintas: W y H por mínimos cuadrados,
+   *    exacto sin suponer nada de la cámara.
+   *  - Si no: proporción deducida de la perspectiva (focal por puntos de fuga,
+   *    EXIF o valor típico) y escala media de las cotas.
+   */
+  function computeCotaCalib() {
+    const C = S.calib, q = S.ref.pts, D = Math.max(S.bg.w, S.bg.h);
+    let f = null, src = '';
+    if (!S.cam.auto) { f = S.cam.f * D; src = 'manual'; }
+    else {
+      f = Geo.focalFromQuad(q, S.bg.w, S.bg.h); src = 'perspectiva';
+      if (!f && S.exifF) { f = S.exifF; src = 'exif'; }
+      if (!f) { f = 0.85 * D; src = 'defecto'; }
+    }
+    C.f = f; C.fSrc = src;
+    const Hu = Geo.homography([[0, 0], [1, 0], [1, 1], [0, 1]], q), Hui = Hu && Geo.inv(Hu);
+    if (!Hui) { C.scale = null; return false; }
+    C.cotas.forEach(c => {
+      const A = Geo.apply(Hui, c.a[0], c.a[1]), B = Geo.apply(Hui, c.b[0], c.b[1]);
+      c.du = B[0] - A[0]; c.dv = B[1] - A[1];
+    });
+    const valid = C.cotas.filter(c => c.mm > 0 && Math.hypot(c.du, c.dv) > 1e-6);
+    const r = Geo.rectifyQuad(q, S.bg.w, S.bg.h, f);
+    C.persAspect = r ? r.aspect : null;
+    let W = null, H = null;
+    const known = parseFloat(C.knownAspect) || null;
+    if (known) {
+      const sc = valid.map(c => c.mm / Math.hypot(known * c.du, c.dv));
+      if (sc.length) { H = sc.reduce((x, y) => x + y, 0) / sc.length; W = known * H; C.aspectSrc = 'formato'; }
+    } else if (valid.length >= 2) {
+      let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+      valid.forEach(c => {
+        const u2 = c.du * c.du, v2 = c.dv * c.dv, L2 = c.mm * c.mm;
+        a11 += u2 * u2; a12 += u2 * v2; a22 += v2 * v2; b1 += L2 * u2; b2 += L2 * v2;
+      });
+      const det = a11 * a22 - a12 * a12;
+      if (det > 0.02 * a11 * a22) {
+        const X = (b1 * a22 - b2 * a12) / det, Y = (a11 * b2 - a12 * b1) / det;
+        if (X > 0 && Y > 0) { W = Math.sqrt(X); H = Math.sqrt(Y); C.aspectSrc = 'cotas'; }
+      }
+    }
+    if (W == null && C.persAspect && valid.length) {
+      const a = C.persAspect;
+      const sc = valid.map(c => c.mm / Math.hypot(a * c.du, c.dv));
+      H = sc.reduce((x, y) => x + y, 0) / sc.length; W = a * H; C.aspectSrc = 'perspectiva';
+    }
+    C.aspect = W && H ? W / H : C.persAspect;
+    if (W == null) { C.scale = null; return false; }
+    // Coherencia: cuánto se desvía cada cota de lo que predice el modelo
+    C.cotas.forEach(c => {
+      const pred = Math.hypot(W * c.du, H * c.dv);
+      c.dev = c.mm > 0 ? pred / c.mm - 1 : null;
+    });
+    const devs = valid.map(c => Math.abs(c.dev));
+    const dof = valid.length - (C.aspectSrc === 'cotas' ? 2 : 1);
+    C.spread = dof > 0 ? Math.max(...devs) * 2 : null;
+    C.scale = H;
+    S.ref.W = W; S.ref.H = H;
+    return true;
+  }
+
   function computeH() {
     S.H = S.Hinv = null;
-    if (!S.ref.pts || !S.bg) return;
+    if (!S.ref.pts || !S.bg) { renderCalibInfo(); return; }
+    if (S.calib.method === 'cota' && !computeCotaCalib()) { renderCalibInfo(); return; }
     const { W, H } = S.ref;
     const h = Geo.homography([[0, 0], [W, 0], [W, H], [0, H]], S.ref.pts);
-    if (!h) return;
-    S.H = h;
-    S.Hinv = Geo.inv(h);
+    if (h) { S.H = h; S.Hinv = Geo.inv(h); }
+    renderCalibInfo();
   }
   function getCam() {
     if (!S.H) return null;
-    return Geo.camera(S.H, S.bg.w, S.bg.h, S.cam.auto ? null : S.cam.f * Math.max(S.bg.w, S.bg.h));
+    const D = Math.max(S.bg.w, S.bg.h);
+    if (S.calib.method === 'cota' && (S.calib.aspectSrc === 'perspectiva' || !S.cam.auto)) return Geo.camera(S.H, S.bg.w, S.bg.h, S.calib.f);
+    return Geo.camera(S.H, S.bg.w, S.bg.h, S.cam.auto ? null : S.cam.f * D, S.exifF);
+  }
+
+  /** Medidas aproximadas (mm) de un cuadrilátero de la imagen sobre el plano. */
+  function quadSizeMm(pts) {
+    if (!S.Hinv) return null;
+    const p = pts.map(imgToPlane), d = Geo.dist2;
+    return [(d(p[0], p[1]) + d(p[3], p[2])) / 2, (d(p[0], p[3]) + d(p[1], p[2])) / 2];
+  }
+  const segMm = (a, b) => S.Hinv ? Geo.dist2(imgToPlane(a), imgToPlane(b)) : null;
+
+  function renderCalibInfo() {
+    const box = $('calInfo');
+    if (!box) return;
+    const C = S.calib, lines = [];
+    if (C.method === 'cota') {
+      if (!S.ref.pts) lines.push('<span class="muted">Paso 1: marca el rectángulo.</span>');
+      else {
+        const fov = C.f ? 2 * Math.atan(S.bg.w / 2 / C.f) / DEG : 0;
+        const srcTxt = { perspectiva: 'deducida de la perspectiva', exif: 'de los datos EXIF de la foto', defecto: 'valor típico (perspectiva poco marcada)', manual: 'manual' }[C.fSrc] || '';
+        lines.push(`Focal: ${srcTxt} · ≈${fov.toFixed(0)}° de campo horizontal`);
+        const aSrc = { formato: 'formato indicado', cotas: 'calculada con las cotas (exacta)', perspectiva: 'deducida de la perspectiva' }[C.aspectSrc] || 'deducida de la perspectiva';
+        if (C.aspect) lines.push(`Proporción del rectángulo: <b>${C.aspect.toFixed(3)} : 1</b> · ${C.scale ? aSrc : 'estimación'}`);
+        if ((!C.scale || C.aspectSrc === 'perspectiva') && C.fSrc === 'defecto')
+          lines.push('<span class="warn">⚠ El rectángulo se ve casi de frente: su proporción no se puede deducir bien. Indica su formato (p. ej. 4:3) o traza dos cotas en direcciones distintas (ancho y alto).</span>');
+        if (!C.scale) lines.push('<span class="muted">Paso 2: traza una cota conocida para fijar los milímetros.</span>');
+        else {
+          lines.push(`Rectángulo marcado ≈ <b>${fmt(S.ref.W)} × ${fmt(S.ref.H)} mm</b>`);
+          if (C.spread != null) {
+            const p = C.spread * 100;
+            lines.push(`<span class="${p > 6 ? 'warn' : 'ok'}">${p > 6 ? '⚠' : '✓'} Coherencia entre cotas: ${fmt(p, 1)} % de diferencia</span>`);
+          } else if (C.aspectSrc === 'cotas') lines.push('<span class="muted">Con 2 cotas el ajuste es exacto; una 3.ª cota permitiría comprobar la precisión.</span>');
+          else lines.push('<span class="muted">Consejo: añade otra cota (mejor en otra dirección) para comprobar la precisión.</span>');
+        }
+      }
+    }
+    box.innerHTML = lines.join('<br>');
+    renderCotaList();
+    const zi = $('zoneInfo');
+    if (zi) {
+      const ownZone = (S.calib.method === 'cota' || !S.zone.useRef) && S.zone.pts;
+      const zs = ownZone ? quadSizeMm(S.zone.pts) : (S.H && S.calib.method !== 'cota' ? [S.ref.W, S.ref.H] : null);
+      zi.innerHTML = zs ? `Zona disponible ≈ <b>${fmt(zs[0])} × ${fmt(zs[1])} mm</b>` : '';
+    }
+  }
+
+  function renderCotaList() {
+    const ul = $('cotaList');
+    if (!ul) return;
+    ul.innerHTML = '';
+    S.calib.cotas.forEach((c, i) => {
+      const li = document.createElement('li');
+      const dev = c.dev != null && S.calib.cotas.length > 1 ? ` <span class="${Math.abs(c.dev) > 0.04 ? 'warn' : 'muted'}">${c.dev > 0 ? '+' : ''}${fmt(c.dev * 100, 1)} %</span>` : '';
+      li.innerHTML = `<span class="cnum">${i + 1}</span><span class="nm">${escapeHtml(c.label)}</span>
+        <input type="number" min="0" step="0.1" value="${c.mm}" aria-label="mm de la cota ${i + 1}"><span class="small muted">mm</span>${dev}
+        <button class="ghost tiny-btn" title="Quitar cota">✕</button>`;
+      li.querySelector('input').addEventListener('change', e => { c.mm = Math.max(0, parseFloat(e.target.value) || 0); calibChanged(); });
+      li.querySelector('button').addEventListener('click', () => { S.calib.cotas.splice(i, 1); calibChanged(); });
+      ul.appendChild(li);
+    });
+  }
+
+  function calibChanged() {
+    computeH();
+    if (S.H) S.items.forEach(it => { if (!it.placed) placeItem(it); });
+    S.items.forEach(markAdjust);
+    updateCamLabel();
+    requestRender(true);
   }
   const imgToPlane = p => Geo.apply(S.Hinv, p[0], p[1]);
 
   function zonePoly() {
+    if (S.calib.method === 'cota') return S.zone.pts ? S.zone.pts.map(imgToPlane) : null;
     if (S.zone.useRef || !S.zone.pts) return [[0, 0], [S.ref.W, 0], [S.ref.W, S.ref.H], [0, S.ref.H]];
     return S.zone.pts.map(imgToPlane);
   }
@@ -249,16 +422,33 @@
     const out = [];
     if (!S.bg) return out;
     if (!S.H) {
-      out.push({ status: 'warn', title: 'Sin calibrar', lines: ['Marca la superficie de referencia (paso 3) para conocer la escala y la perspectiva.'] });
+      const cota = S.calib.method === 'cota';
+      out.push({ status: 'warn', title: 'Sin calibrar', lines: [cota && S.ref.pts
+        ? 'Falta una cota conocida (paso 3.2) para saber los milímetros.'
+        : cota ? 'Marca un rectángulo cualquiera de la superficie y una cota conocida (paso 3).'
+          : 'Marca la superficie de referencia (paso 3) para conocer la escala y la perspectiva.'] });
       return out;
     }
     if (!Geo.isConvexQuad(S.ref.pts)) out.push({ status: 'bad', title: 'Referencia no válida', lines: ['Las 4 esquinas de la referencia se cruzan. Revisa el orden.'] });
     const cam = getCam();
     const zone = zonePoly();
     const geoms = S.items.map(it => itemGeom(it, cam));
+    if (S.calib.method === 'cota') {
+      const C = S.calib, l = [];
+      if (C.fSrc === 'defecto' && C.aspectSrc === 'perspectiva') l.push('⚠ Perspectiva poco marcada: la proporción del rectángulo de referencia es aproximada. Indica su formato o traza una cota en otra dirección.');
+      if (C.spread != null && C.spread > 0.06) l.push(`⚠ Las cotas difieren un ${fmt(C.spread * 100, 1)} %: revisa sus valores o que estén en la misma superficie.`);
+      if (C.cotas.length === 1) l.push('Escala basada en una sola cota: una segunda cota permite comprobar la precisión.');
+      if (l.length) out.push({ status: l.some(x => x.startsWith('⚠')) ? 'warn' : 'ok', title: 'Calibración', lines: l });
+    }
     S.items.forEach((it, i) => {
       const g = geoms[i];
       const res = { status: 'ok', title: it.name, lines: [], id: it.id };
+      if (!zone) {
+        res.status = 'warn';
+        res.lines.push(`Medidas reales: ${fmt(it.w)} × ${fmt(it.h)} mm. Marca la zona disponible (paso 3) para comprobar si cabe.`);
+        out.push(res);
+        return;
+      }
       const margins = g.normals.map((n, e) => {
         // Muestrea el borde: los puntos dentro de la zona dan la holgura hacia ese lado;
         // los que están fuera y "miran" a la zona dan cuánto sobresale.
@@ -563,6 +753,20 @@
     vctx.restore();
   }
 
+  /** Línea de cota con topes y etiqueta. */
+  function drawDim(a, b, color, text) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    const nx = -dy / L * 6, ny = dx / L * 6;
+    vctx.strokeStyle = color; vctx.lineWidth = 2;
+    vctx.beginPath();
+    vctx.moveTo(a[0], a[1]); vctx.lineTo(b[0], b[1]);
+    vctx.moveTo(a[0] - nx, a[1] - ny); vctx.lineTo(a[0] + nx, a[1] + ny);
+    vctx.moveTo(b[0] - nx, b[1] - ny); vctx.lineTo(b[0] + nx, b[1] + ny);
+    vctx.stroke();
+    [a, b].forEach(p => { vctx.fillStyle = color; vctx.beginPath(); vctx.arc(p[0], p[1], 3.5, 0, Math.PI * 2); vctx.fill(); });
+    edgeLabel(a, b, text, color);
+  }
+
   function drawHelpers() {
     if (S.ref.pts) {
       const r = S.ref.pts.map(toScreen);
@@ -579,14 +783,27 @@
         }
       }
       drawHandles(r, '#33d1ff');
-      edgeLabel(r[0], r[1], `${fmt(S.ref.W, S.ref.W % 1 ? 1 : 0)} mm`, '#33d1ff');
-      edgeLabel(r[1], r[2], `${fmt(S.ref.H, S.ref.H % 1 ? 1 : 0)} mm`, '#33d1ff');
+      if (S.H) {
+        const ap = S.calib.method === 'cota' ? '≈ ' : '';
+        edgeLabel(r[0], r[1], `${ap}${fmt(S.ref.W, S.ref.W % 1 && !ap ? 1 : 0)} mm`, '#33d1ff');
+        edgeLabel(r[1], r[2], `${ap}${fmt(S.ref.H, S.ref.H % 1 && !ap ? 1 : 0)} mm`, '#33d1ff');
+      }
     }
-    if (!S.zone.useRef && S.zone.pts) {
+    if ((S.calib.method === 'cota' || !S.zone.useRef) && S.zone.pts) {
       const z = S.zone.pts.map(toScreen);
       vctx.strokeStyle = '#4cd964'; vctx.lineWidth = 2; vctx.setLineDash([3, 3]);
       polyPath(vctx, z); vctx.stroke(); vctx.setLineDash([]);
       drawHandles(z, '#4cd964');
+      const zs = quadSizeMm(S.zone.pts);
+      if (zs) { edgeLabel(z[0], z[1], `zona ≈ ${fmt(zs[0])} mm`, '#4cd964'); edgeLabel(z[1], z[2], `≈ ${fmt(zs[1])} mm`, '#4cd964'); }
+    }
+    S.calib.method === 'cota' && S.calib.cotas.forEach((c, i) => {
+      const a = toScreen(c.a), b = toScreen(c.b);
+      drawDim(a, b, '#ff9f43', `${i + 1}: ${fmt(c.mm, c.mm % 1 ? 1 : 0)} mm`);
+    });
+    if (S.ruler) {
+      const a = toScreen(S.ruler.a), b = toScreen(S.ruler.b), mm = segMm(S.ruler.a, S.ruler.b);
+      drawDim(a, b, '#ffe066', mm != null ? `📏 ${fmt(mm, mm < 100 ? 1 : 0)} mm` : 'calibra primero');
     }
     if (!S.H) return;
     const cam = getCam();
@@ -610,7 +827,7 @@
 
   function drawMarking() {
     const pts = S.marking.pts.map(toScreen);
-    const col = S.marking.kind === 'ref' ? '#33d1ff' : '#4cd964';
+    const col = { ref: '#33d1ff', zone: '#4cd964', cota: '#ff9f43', ruler: '#ffe066' }[S.marking.kind];
     vctx.strokeStyle = col; vctx.lineWidth = 2;
     vctx.beginPath();
     pts.forEach((p, i) => (i ? vctx.lineTo(p[0], p[1]) : vctx.moveTo(p[0], p[1])));
@@ -636,16 +853,22 @@
   /* ------------------------------ Interacción ------------------------------ */
   function setMode(m) {
     S.mode = m;
-    if (m !== 'ref' && m !== 'zone') S.marking = null;
+    const marking = ['ref', 'zone', 'cota', 'ruler'].includes(m);
+    if (!marking) S.marking = null;
     document.querySelectorAll('#toolbar .tool[data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
     $('btnOccPaint').classList.toggle('primary', m === 'occ-paint');
     $('btnOccErase').classList.toggle('primary', m === 'occ-erase');
-    view.style.cursor = m === 'pan' ? 'grab' : (m === 'ref' || m === 'zone') ? 'crosshair' : (m.startsWith('occ') ? 'none' : 'default');
+    $('btnRuler').classList.toggle('active', m === 'ruler');
+    view.style.cursor = m === 'pan' ? 'grab' : marking ? 'crosshair' : (m.startsWith('occ') ? 'none' : 'default');
     const hints = {
       move: S.items.length ? 'Arrastra un equipo para moverlo · flechas: 1 mm (Mayús: 10 mm) · arrastra los puntos de la referencia para corregirla.' : 'Añade un equipo en el paso 4.',
       pan: 'Arrastra para desplazar la vista · rueda para zoom.',
-      ref: 'Haz clic en las <b>4 esquinas</b> del rectángulo de referencia (en cualquier orden). Esc para cancelar.',
-      zone: 'Haz clic en las <b>4 esquinas</b> de la zona disponible para el equipo. Esc para cancelar.',
+      ref: S.calib.method === 'cota'
+        ? 'Haz clic en las <b>4 esquinas de algo rectangular</b> de la superficie (una pantalla existente, un panel, una tapa…). No necesitas sus medidas. Esc para cancelar.'
+        : 'Haz clic en las <b>4 esquinas</b> del rectángulo de referencia (en cualquier orden). Esc para cancelar.',
+      zone: 'Haz clic en las <b>4 esquinas</b> de la zona donde quieres poner el equipo (el hueco libre). Esc para cancelar.',
+      cota: 'Haz clic en los <b>2 extremos</b> de algo cuya medida conozcas, sobre la misma superficie (p. ej. la diagonal de una pantalla). Esc para cancelar.',
+      ruler: 'Regla: haz clic en <b>2 puntos</b> de la superficie calibrada para medir la distancia en mm.',
       'occ-paint': 'Pinta lo que debe quedar <b>delante</b> del equipo nuevo.',
       'occ-erase': 'Borra zonas de la máscara de primer plano.',
     };
@@ -656,15 +879,18 @@
 
   function startMarking(kind) {
     if (!S.bg) { toast('Primero carga la foto base.'); return; }
-    S.marking = { kind, pts: [] };
+    if (kind === 'cota' && !S.ref.pts) { toast('Primero marca el rectángulo de la superficie (paso 3.1).'); return; }
+    const n = kind === 'cota' || kind === 'ruler' ? 2 : 4;
     setMode(kind);
-    S.marking = { kind, pts: [] };
+    S.marking = { kind, pts: [], n };
   }
 
   function hitHandle(sp) {
     const cands = [];
     if (S.helpers && S.ref.pts) S.ref.pts.forEach((p, i) => cands.push({ kind: 'ref', i, p }));
-    if (S.helpers && !S.zone.useRef && S.zone.pts) S.zone.pts.forEach((p, i) => cands.push({ kind: 'zone', i, p }));
+    if (S.helpers && (S.calib.method === 'cota' || !S.zone.useRef) && S.zone.pts) S.zone.pts.forEach((p, i) => cands.push({ kind: 'zone', i, p }));
+    if (S.helpers && S.calib.method === 'cota') S.calib.cotas.forEach((c, i) => { cands.push({ kind: 'cota', i, end: 'a', p: c.a }); cands.push({ kind: 'cota', i, end: 'b', p: c.b }); });
+    if (S.ruler) { cands.push({ kind: 'ruler', end: 'a', p: S.ruler.a }); cands.push({ kind: 'ruler', end: 'b', p: S.ruler.b }); }
     let best = null, bd = 11;
     cands.forEach(c => { const d = Geo.dist2(toScreen(c.p), sp); if (d < bd) { bd = d; best = c; } });
     return best;
@@ -717,7 +943,7 @@
     }
     if (S.marking) {
       S.marking.pts.push(toImage(sp));
-      if (S.marking.pts.length === 4) finishMarking();
+      if (S.marking.pts.length === S.marking.n) finishMarking();
       requestRender(false);
       return;
     }
@@ -763,7 +989,9 @@
     } else if (d.type === 'handle') {
       const ip = toImage(sp);
       if (d.kind === 'ref') { S.ref.pts[d.i] = ip; computeH(); }
-      else S.zone.pts[d.i] = ip;
+      else if (d.kind === 'zone') { S.zone.pts[d.i] = ip; renderCalibInfo(); }
+      else if (d.kind === 'cota') { S.calib.cotas[d.i][d.end] = ip; computeH(); }
+      else if (d.kind === 'ruler') S.ruler[d.end] = ip;
       S.items.forEach(markAdjust);
       requestRender(true);
     } else if (d.type === 'item') {
@@ -793,16 +1021,27 @@
 
   function finishMarking() {
     const { kind, pts } = S.marking;
-    const q = Geo.sortQuad(pts);
     S.marking = null;
+    if (kind === 'ruler') { S.ruler = { a: pts[0], b: pts[1] }; setMode('move'); requestRender(false); return; }
+    if (kind === 'cota') {
+      const mm = num($('cotaMm'), 0);
+      const sel = $('cotaPreset');
+      const label = sel.value === 'diag' ? `Diagonal ${fmt(num($('cotaInch'), 0), 1)}"` : sel.value === 'custom' ? 'Cota' : sel.options[sel.selectedIndex].text.replace(/\s*\(.*$/, '');
+      S.calib.cotas.push({ a: pts[0], b: pts[1], mm, label });
+      if (!(mm > 0)) toast('Escribe la longitud real de la cota en la lista (mm).');
+      setMode('move'); calibChanged(); updateUI();
+      return;
+    }
+    const q = Geo.sortQuad(pts);
     if (!Geo.isConvexQuad(q)) { toast('Las 4 esquinas no forman un cuadrilátero válido. Vuelve a marcarlas.'); setMode('move'); return; }
     if (kind === 'ref') {
       S.ref.pts = q; computeH();
       // centra los equipos que todavía no tienen posición
       S.items.forEach(it => { if (!it.placed) placeItem(it); });
-      toast('Referencia calibrada. Ya puedes añadir equipos (paso 4).');
+      toast(S.H ? 'Referencia calibrada. Ya puedes añadir equipos (paso 4).' : 'Rectángulo marcado. Ahora traza una cota conocida (paso 3.2).');
     } else {
       S.zone.pts = q;
+      S.items.forEach(it => { if (!it.placed || S.items.length === 1) placeItem(it); });
       toast('Zona disponible marcada.');
     }
     S.items.forEach(markAdjust);
@@ -820,7 +1059,7 @@
 
   function placeItem(it) {
     if (!S.H) return;
-    const z = zonePoly();
+    const z = zonePoly() || [[0, 0], [S.ref.W, 0], [S.ref.W, S.ref.H], [0, S.ref.H]];
     const c = z.reduce((a, p) => [a[0] + p[0] / z.length, a[1] + p[1] / z.length], [0, 0]);
     it.cx = c[0]; it.cy = c[1];
     it.placed = true;
@@ -837,6 +1076,7 @@
     else if (k === 'f' || k === 'F') fitView();
     else if (k === 'c' || k === 'C') toggleCompare();
     else if (k === 'g' || k === 'G') toggleHelpers();
+    else if (k === 'm' || k === 'M') $('btnRuler').click();
     else if (k.startsWith('Arrow') && S.sel >= 0) {
       const it = S.items[S.sel];
       const st = e.shiftKey ? 10 : 1;
@@ -877,33 +1117,76 @@
   $('projTitle').addEventListener('input', () => {});
   $('fileBg').addEventListener('change', async e => { const f = e.target.files[0]; if (f) await loadBackground(f); e.target.value = ''; });
 
+  /* ---- Método de calibración ---- */
+  function setCalibMethod(m) {
+    S.calib.method = m;
+    syncCalibUI();
+    calibChanged();
+    setMode('move');
+  }
+  function syncCalibUI() {
+    const cota = S.calib.method === 'cota';
+    $('calModeCota').classList.toggle('active', cota);
+    $('calModeDims').classList.toggle('active', !cota);
+    $('calCota').classList.toggle('hidden', !cota);
+    $('calDims').classList.toggle('hidden', cota);
+    $('zoneUseRefRow').classList.toggle('hidden', cota);
+    $('btnZone').disabled = !cota && S.zone.useRef;
+    if (!cota) refDimsChanged(true);
+  }
+  $('calModeCota').addEventListener('click', () => setCalibMethod('cota'));
+  $('calModeDims').addEventListener('click', () => setCalibMethod('dims'));
+  const COTA_MM = { a4l: 297, a4s: 210, card: 85.6, rack: 482.6, u: 44.45 };
+  function applyCotaPreset() {
+    const v = $('cotaPreset').value;
+    $('cotaInchRow').classList.toggle('hidden', v !== 'diag');
+    if (v === 'diag') $('cotaMm').value = (num($('cotaInch'), 0) * 25.4).toFixed(1);
+    else if (v in COTA_MM) $('cotaMm').value = COTA_MM[v];
+  }
+  $('cotaPreset').addEventListener('change', applyCotaPreset);
+  $('cotaInch').addEventListener('input', applyCotaPreset);
+  $('cotaMm').addEventListener('input', () => { if ($('cotaPreset').value !== 'custom' && $('cotaPreset').value !== 'diag') $('cotaPreset').value = 'custom'; });
+  $('btnRefCota').addEventListener('click', () => startMarking('ref'));
+  $('refAspect').addEventListener('change', e => { S.calib.knownAspect = e.target.value; calibChanged(); });
+  $('btnCota').addEventListener('click', () => startMarking('cota'));
+  $('btnRuler').addEventListener('click', () => { if (S.mode === 'ruler') setMode('move'); else if (!S.H) toast('Calibra primero la superficie (paso 3).'); else startMarking('ruler'); });
+
   const REF_PRESETS = { rack: 482.6, rackin: 450 };
   function applyRefPreset() {
     const p = $('refPreset').value;
     $('refURow').classList.toggle('hidden', !(p in REF_PRESETS));
-    if (p in REF_PRESETS) {
+    $('refScreenRow').classList.toggle('hidden', p !== 'screen');
+    if (p === 'screen') {
+      const [rw, rh] = $('refFormat').value.split(':').map(Number);
+      const d = num($('refInch'), 10.4) * 25.4, k = d / Math.hypot(rw, rh);
+      $('refW').value = (rw * k).toFixed(1); $('refH').value = (rh * k).toFixed(1);
+    } else if (p in REF_PRESETS) {
       $('refW').value = REF_PRESETS[p];
       $('refH').value = (num($('refU'), 1) * 44.45).toFixed(2);
     } else if (p === 'a4') { $('refW').value = 297; $('refH').value = 210; }
     refDimsChanged();
   }
-  function refDimsChanged() {
+  function refDimsChanged(silent) {
+    if (S.calib.method !== 'dims') return;
     S.ref.W = Math.max(1, num($('refW'), 600));
     S.ref.H = Math.max(1, num($('refH'), 400));
+    if (silent === true) return;
     computeH();
     S.items.forEach(markAdjust);
     requestRender(true);
   }
   $('refPreset').addEventListener('change', applyRefPreset);
   $('refU').addEventListener('input', applyRefPreset);
+  $('refInch').addEventListener('input', applyRefPreset);
+  $('refFormat').addEventListener('change', applyRefPreset);
   $('refW').addEventListener('input', () => { $('refPreset').value = 'custom'; $('refURow').classList.add('hidden'); refDimsChanged(); });
   $('refH').addEventListener('input', () => { $('refPreset').value = 'custom'; $('refURow').classList.add('hidden'); refDimsChanged(); });
   $('btnRef').addEventListener('click', () => startMarking('ref'));
-  $('zoneUseRef').addEventListener('change', e => { S.zone.useRef = e.target.checked; $('btnZone').disabled = S.zone.useRef; if (!S.zone.useRef && !S.zone.pts) startMarking('zone'); requestRender(true); });
+  $('zoneUseRef').addEventListener('change', e => { S.zone.useRef = e.target.checked; syncCalibUI(); if (!S.zone.useRef && !S.zone.pts) startMarking('zone'); renderCalibInfo(); requestRender(true); });
   $('btnZone').addEventListener('click', () => startMarking('zone'));
   $('zoneDepth').addEventListener('input', e => { const v = parseFloat(e.target.value); S.zone.depth = isFinite(v) && v > 0 ? v : null; requestRender(true); });
-  $('camAuto').addEventListener('change', e => { S.cam.auto = e.target.checked; $('camF').disabled = S.cam.auto; requestRender(true); updateCamLabel(); });
-  bindSlider('camF', () => S.cam.f, v => { S.cam.f = v; requestRender(true); }, v => v.toFixed(2));
+  $('camAuto').addEventListener('change', e => { S.cam.auto = e.target.checked; $('camF').disabled = S.cam.auto; calibChanged(); });
+  bindSlider('camF', () => S.cam.f, v => { S.cam.f = v; calibChanged(); }, v => v.toFixed(2));
   function updateCamLabel() {
     const cam = getCam();
     if (!cam) { $('camFVal').textContent = ''; return; }
@@ -912,6 +1195,7 @@
     const fov = 2 * Math.atan(S.bg.w / 2 / cam.f) / DEG;
     $('camFVal').textContent = `${rel.toFixed(2)} (≈${fov.toFixed(0)}° horiz.)${S.cam.auto ? (cam.fEst ? ' · estimada' : ' · por defecto') : ''}`;
     if (S.cam.auto) $('camF').value = rel.toFixed(2);
+    else $('camFVal').textContent = `${S.cam.f.toFixed(2)} (≈${(2 * Math.atan(S.bg.w / 2 / (S.cam.f * D)) / DEG).toFixed(0)}° horiz.)`;
   }
 
   // Luz
@@ -1105,7 +1389,8 @@
   $('fileItem').addEventListener('change', async e => { const f = e.target.files[0]; if (f) await addItemFromFile(f); e.target.value = ''; });
 
   function updateUI() {
-    $('btnZone').disabled = S.zone.useRef;
+    syncCalibUI();
+    renderCalibInfo();
     updateCamLabel();
     renderItemList();
     syncItemFields();
@@ -1473,6 +1758,8 @@
       title: $('projTitle').value, notes: $('projNotes').value,
       bg: { name: S.bg.name, data: S.orig.toDataURL('image/jpeg', 0.95) },
       ref: { pts: S.ref.pts, W: S.ref.W, H: S.ref.H, preset: $('refPreset').value, U: num($('refU'), 10) },
+      calib: { method: S.calib.method, knownAspect: S.calib.knownAspect, cotas: S.calib.cotas.map(c => ({ a: c.a, b: c.b, mm: c.mm, label: c.label })) },
+      ruler: S.ruler,
       zone: { useRef: S.zone.useRef, pts: S.zone.pts, depth: S.zone.depth },
       cam: S.cam, light: S.light,
       occl: S.occlHas ? S.occl.toDataURL('image/png') : null,
@@ -1495,6 +1782,10 @@
     $('refW').value = proj.ref.W; $('refH').value = proj.ref.H; $('refPreset').value = proj.ref.preset || 'custom'; $('refU').value = proj.ref.U || 10;
     $('refURow').classList.toggle('hidden', !(($('refPreset').value) in REF_PRESETS));
     Object.assign(S.zone, proj.zone);
+    S.calib.method = proj.calib ? proj.calib.method : 'dims';
+    S.calib.cotas = proj.calib ? proj.calib.cotas : [];
+    S.calib.knownAspect = proj.calib && proj.calib.knownAspect || ''; $('refAspect').value = S.calib.knownAspect;
+    S.ruler = proj.ruler || null;
     $('zoneUseRef').checked = S.zone.useRef; $('zoneDepth').value = S.zone.depth || '';
     Object.assign(S.cam, proj.cam); $('camAuto').checked = S.cam.auto; $('camF').disabled = S.cam.auto; $('camF')._sync();
     Object.assign(S.light, proj.light); ['lgAz', 'lgEl', 'lgOp', 'lgSoft'].forEach(id => $(id)._sync());
@@ -1539,6 +1830,7 @@
     const bgBlob = await (await fetch(smp.bg)).blob();
     S.items = []; S.sel = -1;
     await loadBackground(new File([bgBlob], 'armario_ejemplo.jpg'));
+    S.calib.method = 'dims'; syncCalibUI();
     S.ref.pts = smp.ref.map(p => p.slice()); S.ref.W = 600; S.ref.H = 400;
     $('refW').value = 600; $('refH').value = 400;
     S.zone.depth = 90; $('zoneDepth').value = 90;

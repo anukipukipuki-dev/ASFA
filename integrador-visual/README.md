@@ -24,13 +24,30 @@ python -m http.server 8000
 ## Flujo de trabajo
 
 1. **Foto base**: carga la foto real (JPG). También puedes arrastrarla al lienzo.
-2. **Superficie y escala**: pulsa *Marcar 4 esquinas* y haz clic en las esquinas de un
-   rectángulo **real y medido** que esté en la superficie de montaje: el hueco del
-   pupitre, la puerta del armario o los montantes del rack. Escribe su ancho y alto en mm.
-   - Preajustes: rack 19" (482,6 mm × N U), rack interior (450 mm × N U) o una hoja A4
-     pegada como referencia.
-   - *Zona disponible*: si el hueco libre es distinto de la referencia, márcalo aparte.
-     Puedes indicar también la **profundidad disponible** tras la superficie.
+2. **Superficie y escala**. Hay dos métodos:
+   - **«No sé sus medidas»** (pupitres, cabinas). Es el más habitual:
+     1. Marca las 4 esquinas de **cualquier cosa rectangular** que esté en la misma
+        superficie donde irá el equipo: una pantalla existente, un panel, una tapa o una
+        etiqueta. No hace falta saber cuánto mide.
+     2. Traza una **cota conocida**: dos puntos cuya distancia real sepas. Por ejemplo, la
+        diagonal de una pantalla existente en pulgadas, una hoja A4, una tarjeta o 1 U de rack.
+     3. La app calcula el tamaño real del rectángulo y, con él, los milímetros de toda esa
+        superficie. Cómo lo calcula según lo que le des:
+        - **Formato conocido** (por ejemplo, la pantalla es 4:3): basta una cota.
+        - **Dos o más cotas en direcciones distintas** (ancho y alto, o diagonal y alto):
+          ancho y alto exactos, sin suponer nada de la cámara. Con 3 o más cotas comprueba
+          además la coherencia entre ellas.
+        - **Una sola cota sin formato**: deduce la proporción de la perspectiva (puntos de
+          fuga, o la focal del EXIF de la foto). Avisa si la superficie se ve demasiado de
+          frente para hacerlo con fiabilidad.
+   - **«Sé sus medidas»** (armarios, racks): marca un rectángulo y escribe su ancho y alto.
+     Hay preajustes para rack 19", hoja A4 y pantalla por diagonal y formato.
+   - **Zona disponible**: marca el hueco donde quieres el equipo. La app te dice cuánto mide
+     y si el equipo cabe. Puedes indicar también la **profundidad disponible**.
+   - **📏 Medir** (tecla M): regla para medir cualquier distancia sobre la superficie
+     calibrada. Sirve para comprobar la calibración con algo que conozcas.
+   - Todo debe estar en **la misma superficie** (el mismo plano). En un pupitre con varias
+     caras inclinadas, calibra la cara donde irá el equipo.
 3. **Equipos**: añade la foto del equipo. En el editor:
    - Introduce **ancho, alto y fondo reales** (mm).
    - Quita el fondo: automático, varita o pincel.
@@ -68,6 +85,7 @@ python -m http.server 8000
 | F | Ajustar a la ventana |
 | C | Antes / después |
 | G | Mostrar/ocultar ayudas |
+| M | Regla (medir en mm) |
 | Flechas | Mover el equipo seleccionado (1 mm, Mayús: 10 mm) |
 | Ctrl+S | Guardar proyecto |
 | Esc | Cancelar marcado |

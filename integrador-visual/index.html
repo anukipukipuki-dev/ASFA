@@ -40,26 +40,78 @@
     <!-- 3. Calibración -->
     <section class="panel" data-step="3">
       <h2><span class="num">3</span> Superficie de montaje y escala</h2>
-      <p class="small muted">Marca las <b>4 esquinas de un rectángulo real</b> que esté en la superficie donde irá el equipo (el hueco del pupitre, la puerta del armario, los montantes del rack…) e indica sus medidas reales. Así la app conoce la perspectiva y los milímetros.</p>
-      <label>Preajuste
-        <select id="refPreset">
-          <option value="custom">Personalizado</option>
-          <option value="rack">Rack 19" (482,6 mm × N U)</option>
-          <option value="rackin">Rack 19" interior entre montantes (450 mm × N U)</option>
-          <option value="a4">Hoja A4 pegada como referencia (297 × 210)</option>
-        </select>
-      </label>
-      <div class="grid2">
-        <label>Ancho real (mm) <input id="refW" type="number" min="1" step="0.1" value="600"></label>
-        <label>Alto real (mm) <input id="refH" type="number" min="1" step="0.1" value="400"></label>
+      <div class="seg" role="group" aria-label="Método de calibración">
+        <button id="calModeCota" class="seg-btn active" type="button">No sé sus medidas<small>pupitre, cabina</small></button>
+        <button id="calModeDims" class="seg-btn" type="button">Sé sus medidas<small>armario, rack</small></button>
       </div>
-      <label id="refURow" class="hidden">Unidades de rack (U) <input id="refU" type="number" min="1" step="1" value="10"></label>
-      <button id="btnRef" class="primary block">✛ Marcar 4 esquinas de la referencia</button>
+
+      <div id="calCota">
+        <p class="small"><b>3.1</b> Marca las 4 esquinas de <b>cualquier cosa rectangular</b> que esté en la misma superficie donde irá el equipo: una pantalla existente, un panel, una tapa, una etiqueta… <span class="muted">No hace falta saber cuánto mide: la app deduce la perspectiva y su proporción real.</span></p>
+        <button id="btnRefCota" class="primary block">✛ Marcar rectángulo (sin medidas)</button>
+        <label>Proporción de ese rectángulo
+          <select id="refAspect">
+            <option value="">No la sé (la deduce la app)</option>
+            <option value="1.3333333">4:3 (pantallas 6,5" · 10,4" · 12,1" · 15")</option>
+            <option value="1.25">5:4</option>
+            <option value="1.6">16:10</option>
+            <option value="1.7777778">16:9</option>
+            <option value="1">1:1 (cuadrado)</option>
+            <option value="1.4142136">Hoja A4 / DIN (1,414:1)</option>
+          </select>
+        </label>
+        <p class="small" style="margin-top:12px"><b>3.2</b> Traza una <b>cota conocida</b> sobre esa superficie: dos puntos cuya distancia real sepas. <span class="muted">Cuantas más cotas, más fiable.</span></p>
+        <label>¿Qué vas a medir?
+          <select id="cotaPreset">
+            <option value="diag">Diagonal de una pantalla existente (pulgadas)</option>
+            <option value="custom">Una distancia que conozco (mm)</option>
+            <option value="a4l">Hoja A4, lado largo (297 mm)</option>
+            <option value="a4s">Hoja A4, lado corto (210 mm)</option>
+            <option value="card">Tarjeta de crédito, lado largo (85,6 mm)</option>
+            <option value="rack">Rack 19", entre orejas (482,6 mm)</option>
+            <option value="u">1 U de rack (44,45 mm)</option>
+          </select>
+        </label>
+        <div class="grid2">
+          <label id="cotaInchRow">Pulgadas <input id="cotaInch" type="number" min="1" step="0.1" value="10.4"></label>
+          <label>Longitud real (mm) <input id="cotaMm" type="number" min="0" step="0.1" value="264.2"></label>
+        </div>
+        <button id="btnCota" class="ghost block">📐 Trazar cota (2 clics)</button>
+        <ul id="cotaList" class="cotalist"></ul>
+        <div id="calInfo" class="calinfo small"></div>
+        <p class="small muted">Truco: la diagonal de la zona visible de una pantalla es una referencia excelente. Mide la diagonal del cristal, no la del marco.</p>
+      </div>
+
+      <div id="calDims" class="hidden">
+        <p class="small muted">Marca las <b>4 esquinas de un rectángulo real</b> de la superficie de montaje (la puerta del armario, los montantes del rack…) e indica sus medidas.</p>
+        <label>Preajuste
+          <select id="refPreset">
+            <option value="custom">Personalizado</option>
+            <option value="rack">Rack 19" (482,6 mm × N U)</option>
+            <option value="rackin">Rack 19" interior entre montantes (450 mm × N U)</option>
+            <option value="a4">Hoja A4 pegada como referencia (297 × 210)</option>
+            <option value="screen">Pantalla existente: diagonal y formato</option>
+          </select>
+        </label>
+        <div id="refScreenRow" class="grid2 hidden">
+          <label>Diagonal (pulgadas) <input id="refInch" type="number" min="1" step="0.1" value="10.4"></label>
+          <label>Formato
+            <select id="refFormat"><option value="4:3">4:3</option><option value="5:4">5:4</option><option value="16:10">16:10</option><option value="16:9">16:9</option></select>
+          </label>
+        </div>
+        <div class="grid2">
+          <label>Ancho real (mm) <input id="refW" type="number" min="1" step="0.1" value="600"></label>
+          <label>Alto real (mm) <input id="refH" type="number" min="1" step="0.1" value="400"></label>
+        </div>
+        <label id="refURow" class="hidden">Unidades de rack (U) <input id="refU" type="number" min="1" step="1" value="10"></label>
+        <button id="btnRef" class="primary block">✛ Marcar 4 esquinas de la referencia</button>
+      </div>
 
       <details class="sub">
         <summary>Zona disponible para el equipo</summary>
-        <label class="check"><input id="zoneUseRef" type="checkbox" checked> La zona disponible es la misma referencia</label>
+        <p class="small muted">Marca el hueco donde quieres poner el equipo. La app te dice cuánto mide y si el equipo cabe.</p>
+        <label class="check" id="zoneUseRefRow"><input id="zoneUseRef" type="checkbox" checked> La zona disponible es la misma referencia</label>
         <button id="btnZone" class="ghost block" disabled>✛ Marcar 4 esquinas de la zona disponible</button>
+        <div id="zoneInfo" class="small calinfo"></div>
         <label>Profundidad disponible tras la superficie (mm, opcional) <input id="zoneDepth" type="number" min="0" step="1" placeholder="p. ej. 120"></label>
       </details>
 
@@ -175,6 +227,9 @@
       <div class="tgroup">
         <button class="tool active" data-mode="move" title="Mover equipos (V)">✥ Mover</button>
         <button class="tool" data-mode="pan" title="Desplazar vista (H o barra espaciadora)">✋ Vista</button>
+      </div>
+      <div class="tgroup">
+        <button id="btnRuler" class="tool" title="Medir distancias sobre la superficie (M)">📏 Medir</button>
       </div>
       <div class="tgroup">
         <button id="btnFit" class="tool" title="Ajustar a la ventana (F)">⤢ Ajustar</button>

@@ -82,7 +82,7 @@ const Geo = (() => {
    * estimar la focal. Devuelve funciones para proyectar puntos 3D (mm) con Z
    * positiva hacia la cámara (saliendo de la superficie).
    */
-  function camera(H, imgW, imgH, fManual) {
+  function camera(H, imgW, imgH, fManual, fFallback) {
     const cx = imgW / 2, cy = imgH / 2;
     const Hc = mul([1, 0, -cx, 0, 1, -cy, 0, 0, 1], H);
     const h = Hc;
@@ -100,7 +100,7 @@ const Geo = (() => {
     }
     const good = ests.filter(f => f > 0.35 * D && f < 4 * D);
     const fEst = good.length ? good.reduce((a, b) => a + b, 0) / good.length : null;
-    const f = fManual || fEst || 0.85 * D;
+    const f = fManual || fEst || fFallback || 0.85 * D;
 
     const m1 = [h[0] / f, h[3] / f, h[6]];
     const m2 = [h[1] / f, h[4] / f, h[7]];
@@ -126,6 +126,59 @@ const Geo = (() => {
       return [f * P[0] / z + cx, f * P[1] / z + cy];
     }
     return { f, fEst, camPoint, project, ok: isFinite(lam) };
+  }
+
+  /* ------------------ Rectángulo de medidas desconocidas ------------------ */
+  /**
+   * Reconstruye en 3D un cuadrilátero de la foto que en la realidad es un
+   * rectángulo (de medidas desconocidas), para una focal f dada.
+   * Devuelve la proporción real ancho/alto y el coseno del ángulo entre lados
+   * (0 = ángulo recto, es decir, focal coherente).
+   */
+  function rectifyQuad(quad, imgW, imgH, f) {
+    const cx = imgW / 2, cy = imgH / 2;
+    const r = quad.map(([x, y]) => [(x - cx) / f, (y - cy) / f, 1]);
+    // Paralelogramo: X0 + X2 = X1 + X3, con Xi = li * ri y l0 = 1
+    // l1*r1 - l2*r2 + l3*r3 = r0
+    const A = [0, 1, 2].map(k => [r[1][k], -r[2][k], r[3][k]]);
+    const l = solve(A, r[0].slice());
+    if (!l || l.some(v => !(v > 0))) return null;
+    const X = [r[0], scl(r[1], l[0]), scl(r[2], l[1]), scl(r[3], l[2])];
+    const e1 = sub(X[1], X[0]), e2 = sub(X[3], X[0]);
+    const e3 = sub(X[2], X[3]), e4 = sub(X[2], X[1]);
+    const w = (norm(e1) + norm(e3)) / 2, h = (norm(e2) + norm(e4)) / 2;
+    const cos = Math.abs(dot(e1, e2)) / (norm(e1) * norm(e2));
+    return { aspect: w / h, cos };
+  }
+
+  /**
+   * Estima la focal que hace que el cuadrilátero sea un rectángulo con ángulos
+   * rectos (equivale a usar sus puntos de fuga). Devuelve null si la perspectiva
+   * es demasiado débil para estimarla con fiabilidad.
+   */
+  function focalFromQuad(quad, imgW, imgH) {
+    const D = Math.max(imgW, imgH);
+    const cost = f => { const r = rectifyQuad(quad, imgW, imgH, f); return r ? r.cos : 9; };
+    // búsqueda en escala logarítmica + refinado por sección áurea
+    let best = null, bc = Infinity;
+    for (let k = 0; k <= 60; k++) {
+      const f = D * 0.3 * Math.pow(12, k / 60);
+      const c = cost(f);
+      if (c < bc) { bc = c; best = f; }
+    }
+    if (!best) return null;
+    let a = best / 1.05, b = best * 1.05;
+    const g = (Math.sqrt(5) - 1) / 2;
+    for (let i = 0; i < 40; i++) {
+      const c1 = b - g * (b - a), c2 = a + g * (b - a);
+      if (cost(c1) < cost(c2)) b = c2; else a = c1;
+    }
+    const f = (a + b) / 2, c = cost(f);
+    // fiable solo si alcanza ~90° y no está en los extremos del rango
+    const ok = c < 0.02 && f > D * 0.32 && f < D * 3.5;
+    // y si la perspectiva es apreciable (si todas las focales dan casi 90°, no informa)
+    const spread = Math.abs(cost(f * 0.6) - c) + Math.abs(cost(f * 1.6) - c);
+    return ok && spread > 0.02 ? f : null;
   }
 
   /* ----------------------------- Polígonos ----------------------------- */
@@ -216,7 +269,7 @@ const Geo = (() => {
   const dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
   return {
-    homography, mul, inv, apply, scaleM, camera,
+    homography, mul, inv, apply, scaleM, camera, rectifyQuad, focalFromQuad,
     pointInPoly, rayPolyT, polyArea, isConvexQuad, sortQuad, convexHull, convexOverlap, dist2,
     vec: { sub, dot, cross, norm, scl },
   };
