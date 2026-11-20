@@ -44,7 +44,21 @@
   }
   const fmt = (v, d = 0) => Number(v).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
   const num = (el, def = 0) => { const v = parseFloat(el.value); return isFinite(v) ? v : def; };
-  function download(blob, name) {
+  // Dentro de claude.ai las descargas directas están bloqueadas: se usa la capacidad
+  // "downloads" (el visor pide confirmación). Fuera de claude.ai, enlace normal.
+  let dlCap;
+  const getDownloads = () => {
+    if (dlCap === undefined) dlCap = window.claude && window.claude.use ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+    return dlCap;
+  };
+  getDownloads();
+  async function download(blob, name) {
+    const cap = await getDownloads();
+    if (cap) {
+      try { await cap.save({ filename: name, data: blob }); }
+      catch (err) { if (err && err.code !== 'declined') throw new Error(err.message || err.code || 'no se pudo guardar'); }
+      return;
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name;
@@ -1068,7 +1082,14 @@
   $('btnEditItem').addEventListener('click', () => { const it = S.items[S.sel]; if (it) openEditor(it, false); });
   $('btnDelItem').addEventListener('click', () => {
     if (S.sel < 0) return;
-    if (!confirm(`¿Quitar «${S.items[S.sel].name}» de la escena?`)) return;
+    const btn = $('btnDelItem');
+    if (!btn.dataset.armed) {
+      btn.dataset.armed = '1';
+      btn.textContent = '¿Seguro? Pulsa otra vez';
+      setTimeout(() => { delete btn.dataset.armed; btn.textContent = '🗑 Quitar'; }, 3000);
+      return;
+    }
+    delete btn.dataset.armed; btn.textContent = '🗑 Quitar';
     S.items.splice(S.sel, 1);
     S.sel = Math.min(S.sel, S.items.length - 1);
     renderItemList(); syncItemFields(); requestRender(true);
@@ -1319,7 +1340,7 @@
 
   $('btnExpJpg').addEventListener('click', () => requireScene() && busy(async () => {
     const c = renderFull($('expAnnot').checked);
-    download(await canvasBlob(c, 'image/jpeg', 0.93), safeName($('projTitle').value) + '.jpg');
+    await download(await canvasBlob(c, 'image/jpeg', 0.93), safeName($('projTitle').value) + '.jpg');
   }));
 
   function comparisonCanvas(after) {
@@ -1338,7 +1359,7 @@
   }
   $('btnExpCmp').addEventListener('click', () => requireScene() && busy(async () => {
     const c = comparisonCanvas(renderFull($('expAnnot').checked));
-    download(await canvasBlob(c, 'image/jpeg', 0.9), safeName($('projTitle').value) + '_antes_despues.jpg');
+    await download(await canvasBlob(c, 'image/jpeg', 0.9), safeName($('projTitle').value) + '_antes_despues.jpg');
   }));
 
   function toJpegData(canvas, maxSide) {
@@ -1434,7 +1455,7 @@
     const calib = `Calibración: referencia de ${fmt(S.ref.W, 1)} × ${fmt(S.ref.H, 1)} mm${S.zone.depth ? ` · fondo disponible ${fmt(S.zone.depth)} mm` : ''} · foto ${S.bg.w}×${S.bg.h} px.`;
     doc.text(calib, M, Math.min(PH - 11, Math.max(y, PH - 11)));
     footer(doc.getNumberOfPages());
-    doc.save(safeName(title) + '.pdf');
+    await download(doc.output('blob'), safeName(title) + '.pdf');
   }));
 
   /* ------------------------------ Proyecto ------------------------------ */
@@ -1461,8 +1482,8 @@
         cx: it.cx, cy: it.cy, rot: it.rot, snap: it.snap, housing: it.housing, housingAuto: it.housingAuto, adj: it.adj,
       })),
     };
-    download(new Blob([JSON.stringify(proj)], { type: 'application/json' }), safeName(proj.title) + '.ivproj.json');
-    toast('Proyecto guardado.');
+    try { await download(new Blob([JSON.stringify(proj)], { type: 'application/json' }), safeName(proj.title) + '.ivproj.json'); toast('Proyecto guardado.'); }
+    catch (err) { toast('No se pudo guardar: ' + err.message, 6000); }
   }
   async function openProject(file) {
     const proj = JSON.parse(await file.text());
@@ -1508,6 +1529,38 @@
     if (!f) return;
     try { await openProject(f); } catch (err) { console.error(err); toast('No se pudo abrir: ' + err.message, 6000); }
   });
+
+  /* ------------------------------ Ejemplo ------------------------------ */
+  // Solo si la página incluye window.IV_SAMPLE (versión web publicada).
+  async function loadSample() {
+    const smp = window.IV_SAMPLE;
+    if (!smp) return;
+    $('projTitle').value = 'Ejemplo: pantalla en armario';
+    const bgBlob = await (await fetch(smp.bg)).blob();
+    S.items = []; S.sel = -1;
+    await loadBackground(new File([bgBlob], 'armario_ejemplo.jpg'));
+    S.ref.pts = smp.ref.map(p => p.slice()); S.ref.W = 600; S.ref.H = 400;
+    $('refW').value = 600; $('refH').value = 400;
+    S.zone.depth = 90; $('zoneDepth').value = 90;
+    computeH();
+    const img = await Img.loadImage(smp.item);
+    const it = newItem(Img.imageToCanvas(img, ITEM_MAX), 'Pantalla (ejemplo)');
+    Img.autoRemoveBackground(it.src.data, it.mask, it.src.w, it.src.h, 32);
+    Img.fillHoles(it.mask, it.src.w, it.src.h);
+    const bb = Img.maskBBox(it.mask, it.src.w, it.src.h);
+    if (bb) it.quad = [[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]]];
+    Object.assign(it, { w: 300, h: 200, d: 70, maskVer: 1 });
+    makeThumb(it);
+    S.items.push(it); S.sel = 0;
+    placeItem(it);
+    adjustItem(it);
+    updateUI(); setMode('move'); requestRender(true);
+    toast('Ejemplo cargado: arrastra la pantalla, cambia el montaje o el ancho y mira la comprobación.', 6000);
+  }
+  if (window.IV_SAMPLE) {
+    $('btnSample').classList.remove('hidden');
+    $('btnSample').addEventListener('click', () => loadSample().catch(err => toast('No se pudo cargar el ejemplo: ' + err.message)));
+  }
 
   /* ------------------------------ Inicio ------------------------------ */
   window.addEventListener('resize', () => { resizeView(); if (!$('editor').classList.contains('hidden')) { resizeEd(); drawEd(); } });
