@@ -350,6 +350,20 @@
     return [it.quad.flat().map(v => v.toFixed(1)).join(','), (it.w / it.h).toFixed(5), it.adj.feather, it.maskVer || 0].join('|');
   }
 
+  /** Endereza los laterales marcados en la foto del equipo (si los hay). */
+  function ensureSideTex(it) {
+    ['sideLR', 'sideTB'].forEach(k => {
+      const sd = it[k];
+      if (!sd || !sd.quad) return;
+      const realH = k === 'sideLR' ? it.h : it.w;
+      const key = [sd.quad.flat().map(v => v.toFixed(1)).join(','), it.d, realH, it.maskVer || 0, it.adj.feather].join('|');
+      if (sd.key === key) return;
+      sd.key = key;
+      sd.tex = it.d > 0 ? Img.rectify(it.src, it.mask, sd.quad, it.d, realH, it.adj.feather, 1024) : null;
+      sd.mips = null;
+    });
+  }
+
   function ensureTex(it) {
     const k = itemTexKey(it);
     if (it.tex && it.texKey === k) return;
@@ -362,13 +376,33 @@
     const c = Math.cos(it.rot * DEG), s = Math.sin(it.rot * DEG);
     const L2P = (u, v) => { const dx = u - it.w / 2, dy = v - it.h / 2; return [it.cx + c * dx - s * dy, it.cy + s * dx + c * dy]; };
     const rotN = n => [c * n[0] - s * n[1], s * n[0] + c * n[1]];
-    const base = [[0, 0], [it.w, 0], [it.w, it.h], [0, it.h]].map(p => L2P(p[0], p[1]));
+    const loc = [[0, 0], [it.w, 0], [it.w, it.h], [0, it.h]];
+    const base = loc.map(p => L2P(p[0], p[1]));
     const P = it.protrude;
-    const baseImg = base.map(p => cam.project(p[0], p[1], 0));
-    const frontImg = base.map(p => cam.project(p[0], p[1], P));
+    // Inclinación (eje horizontal) y orientación (eje vertical) respecto a la
+    // superficie. Gira sobre la arista que queda apoyada, sin atravesar el panel.
+    const tx = P > 0 ? (it.tiltX || 0) * DEG : 0, ty = P > 0 ? (it.tiltY || 0) * DEG : 0;
+    const L3 = (u, v, z) => {
+      if (tx) {
+        const v0 = tx >= 0 ? it.h : 0, dv = v - v0;
+        const dv2 = dv * Math.cos(tx) + z * Math.sin(tx), z2 = -dv * Math.sin(tx) + z * Math.cos(tx);
+        v = v0 + dv2; z = z2;
+      }
+      if (ty) {
+        const u0 = ty >= 0 ? 0 : it.w, du = u - u0;
+        const du2 = du * Math.cos(ty) - z * Math.sin(ty), z2 = du * Math.sin(ty) + z * Math.cos(ty);
+        u = u0 + du2; z = z2;
+      }
+      const q = L2P(u, v);
+      return [q[0], q[1], z];
+    };
+    const back3 = loc.map(p => L3(p[0], p[1], 0));
+    const front3 = loc.map(p => L3(p[0], p[1], P));
+    const baseImg = back3.map(p => cam.project(p[0], p[1], p[2]));
+    const frontImg = front3.map(p => cam.project(p[0], p[1], p[2]));
     const expand = g => [[-g, -g], [it.w + g, -g], [it.w + g, it.h + g], [-g, it.h + g]].map(p => L2P(p[0], p[1]));
     const normals = [[0, -1], [1, 0], [0, 1], [-1, 0]].map(rotN);
-    return { L2P, base, baseImg, frontImg, expand, normals, P };
+    return { L2P, base, baseImg, frontImg, back3, front3, expand, normals, P, tilted: !!(tx || ty) };
   }
 
   /** Recalcula el ajuste fotométrico de un equipo según su posición en la escena. */
@@ -403,6 +437,13 @@
     const adj = Img.adjustTexture(it.tex, it.adj, scene, it.photoStats, sigma);
     it.mips = Img.buildMips(adj);
     it.edge = Img.edgeColor(adj);
+    // Laterales marcados en la foto: mismo ajuste de color que la cara frontal
+    ensureSideTex(it);
+    ['sideLR', 'sideTB'].forEach(k => {
+      const sd = it[k];
+      if (sd && sd.tex) sd.mips = Img.buildMips(Img.adjustTexture(sd.tex, it.adj, scene, it.photoStats, 0));
+      else if (sd) sd.mips = null;
+    });
     it.adjDirty = false;
   }
 
@@ -561,9 +602,10 @@
       // --- Sombras proyectadas sobre la superficie
       if (P > 0.5 && op > 0) {
         const lz = Math.max(Lp[2], 0.2);
-        const off = [-Lp[0] / lz * P, -Lp[1] / lz * P];
-        const hull = Geo.convexHull(g.base.concat(g.base.map(p => [p[0] + off[0], p[1] + off[1]])));
-        const blur = (1.5 + soft * (2 + P * 0.35)) * ppm;
+        const onWall = p => [p[0] - Lp[0] / lz * p[2], p[1] - Lp[1] / lz * p[2]];
+        const hull = Geo.convexHull(g.back3.concat(g.front3).map(onWall));
+        const zMax = Math.max(...g.front3.map(p => p[2]), ...g.back3.map(p => p[2]));
+        const blur = (1.5 + soft * (2 + zMax * 0.35)) * ppm;
         Img.blurPoly(ctx, toImgT(hull), blur, `rgba(0,0,0,${0.62 * op})`);
         Img.blurPoly(ctx, toImgT(g.expand(1.2)), (1 + soft * 3) * ppm, `rgba(0,0,0,${0.55 * op})`);
       }
@@ -589,22 +631,54 @@
         }
         ctx.restore();
       }
-      // --- Laterales visibles (sobresale)
+      // --- Laterales visibles (sobresale): textura real si se marcó en la foto
       if (P > 0.3) {
-        for (let e = 0; e < 4; e++) {
-          const a = g.base[e], b = g.base[(e + 1) % 4];
-          const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-          const Pc = cam.camPoint(mid[0], mid[1], P / 2);
-          const Pn = cam.camPoint(mid[0] + g.normals[e][0], mid[1] + g.normals[e][1], P / 2);
-          const n3 = Geo.vec.sub(Pn, Pc);
-          if (Geo.vec.dot(n3, Geo.vec.scl(Pc, -1)) <= 0) continue;
-          const n = g.normals[e];
-          const sh = 0.38 + 0.62 * Math.max(0, n[0] * Lp[0] + n[1] * Lp[1]);
-          const poly = [baseT[e], baseT[(e + 1) % 4], frontT[(e + 1) % 4], frontT[e]];
+        const V = Geo.vec;
+        const cam8 = g.back3.concat(g.front3).map(p => cam.camPoint(p[0], p[1], p[2]));
+        const cc = cam8.reduce((acc, p) => [acc[0] + p[0] / 8, acc[1] + p[1] / 8, acc[2] + p[2] / 8], [0, 0, 0]);
+        const pc8 = g.back3.concat(g.front3);
+        const pcc = pc8.reduce((acc, p) => [acc[0] + p[0] / 8, acc[1] + p[1] / 8, acc[2] + p[2] / 8], [0, 0, 0]);
+        // [trasera-a, trasera-b, frontal-b, frontal-a] y cómo se mapea la textura lateral
+        const faces = [
+          { e: 0, idx: [0, 1], kind: 'TB', tex: [[0, 'b'], [0, 'f'], [1, 'f'], [1, 'b']] },
+          { e: 1, idx: [1, 2], kind: 'LR', tex: [[1, 'b'], [1, 'f'], [2, 'f'], [2, 'b']] },
+          { e: 2, idx: [3, 2], kind: 'TB', tex: [[3, 'b'], [3, 'f'], [2, 'f'], [2, 'b']] },
+          { e: 3, idx: [0, 3], kind: 'LR', tex: [[0, 'b'], [0, 'f'], [3, 'f'], [3, 'b']] },
+        ];
+        for (const F of faces) {
+          const [i0, i1] = F.idx;
+          const A = cam8[i0], B = cam8[i1], C = cam8[4 + i1], D = cam8[4 + i0];
+          const fc = [(A[0] + B[0] + C[0] + D[0]) / 4, (A[1] + B[1] + C[1] + D[1]) / 4, (A[2] + B[2] + C[2] + D[2]) / 4];
+          let n = V.cross(V.sub(B, A), V.sub(D, A));
+          if (V.dot(n, V.sub(fc, cc)) < 0) n = V.scl(n, -1);
+          if (V.dot(n, V.scl(fc, -1)) <= 0) continue;
+          // normal en coordenadas del plano para el sombreado
+          const pA = pc8[i0], pB = pc8[i1], pD = pc8[4 + i0];
+          let np = V.cross(V.sub(pB, pA), V.sub(pD, pA));
+          const pfc = [(pA[0] + pB[0] + pD[0] + pc8[4 + i1][0]) / 4, (pA[1] + pB[1] + pD[1] + pc8[4 + i1][1]) / 4, (pA[2] + pB[2] + pD[2] + pc8[4 + i1][2]) / 4];
+          if (V.dot(np, V.sub(pfc, pcc)) < 0) np = V.scl(np, -1);
+          np = V.scl(np, 1 / (V.norm(np) || 1));
+          const sh = 0.38 + 0.62 * Math.max(0, V.dot(np, Lp));
+          const lf = (it.lightF[i0] + it.lightF[i1]) / 2;
+          const poly = [baseT[i0], baseT[i1], frontT[i1], frontT[i0]];
+          const side = F.kind === 'LR' ? it.sideLR : it.sideTB;
+          if (side && side.mips) {
+            const ptsT = F.tex.map(([ci, bf]) => (bf === 'b' ? baseT : frontT)[ci]);
+            const len = Geo.dist2(ptsT[0], ptsT[1]);
+            let lv = 0;
+            while (lv < side.mips.length - 1 && side.mips[lv].w / Math.max(1, len) > 1.6) lv++;
+            const st = side.mips[lv];
+            const s0 = Img.clamp(1 - P / Math.max(it.d, 1e-6), 0, 0.98) * st.w;
+            const Gs = Geo.homography([[s0, 0], [st.w, 0], [st.w, st.h], [s0, st.h]], ptsT);
+            if (Gs) {
+              const k = (0.55 + 0.45 * sh) * lf;
+              Img.warpOnto(ctx, st, Gs, { lightF: [k, k, k, k], clip: poly });
+              continue;
+            }
+          }
           const m0 = [(poly[0][0] + poly[1][0]) / 2, (poly[0][1] + poly[1][1]) / 2];
           const m1 = [(poly[2][0] + poly[3][0]) / 2, (poly[2][1] + poly[3][1]) / 2];
           const grad = ctx.createLinearGradient(m0[0], m0[1], m1[0], m1[1]);
-          const lf = (it.lightF[e] + it.lightF[(e + 1) % 4]) / 2;
           grad.addColorStop(0, rgb(housing, sh * lf * 0.72));
           grad.addColorStop(0.85, rgb(housing, sh * lf));
           grad.addColorStop(1, rgb(housing, sh * lf * 1.12));
@@ -1235,7 +1309,7 @@
       Img.fillHoles(it.mask, it.src.w, it.src.h);
       const bb = Img.maskBBox(it.mask, it.src.w, it.src.h);
       if (bb && (bb[2] - bb[0]) * (bb[3] - bb[1]) > it.src.w * it.src.h * 0.03) {
-        it.quad = [[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]]];
+        it.quad = Img.maskQuad(it.mask, it.src.w, it.src.h);
       } else it.mask.fill(255);
     }
     // proporción inicial a partir de la foto (el usuario debe confirmar las medidas reales)
@@ -1315,6 +1389,7 @@
     set('itMount', it.mount);
     set('itProt', +it.protrude.toFixed(2)); set('itGap', +it.gap.toFixed(2));
     set('itX', +(it.cx - it.w / 2).toFixed(1)); set('itY', +(it.cy - it.h / 2).toFixed(1)); set('itRot', +it.rot.toFixed(1));
+    set('itTiltX', it.tiltX || 0); set('itTiltY', it.tiltY || 0);
     set('itSnap', it.snap);
     set('itHousing', it.housing); $('itHousingAuto').checked = it.housingAuto;
     ADJ.forEach(id => $(id)._sync());
@@ -1346,6 +1421,8 @@
   onItemField('itX', (it, el) => { it.cx = num(el, 0) + it.w / 2; });
   onItemField('itY', (it, el) => { it.cy = num(el, 0) + it.h / 2; });
   onItemField('itRot', (it, el) => { it.rot = num(el, 0); });
+  onItemField('itTiltX', (it, el) => { it.tiltX = Img.clamp(num(el, 0), -80, 80); if (it.protrude <= 0.3 && it.tiltX) toast('La inclinación solo se aplica si el equipo sobresale: cambia el montaje a «Sobre la superficie».'); });
+  onItemField('itTiltY', (it, el) => { it.tiltY = Img.clamp(num(el, 0), -80, 80); if (it.protrude <= 0.3 && it.tiltY) toast('La orientación solo se aplica si el equipo sobresale: cambia el montaje a «Sobre la superficie».'); });
   onItemField('itSnap', (it, el) => { it.snap = Math.max(0, num(el, 0)); applySnap(it); });
   onItemField('itHousing', (it, el) => { it.housing = el.value; it.housingAuto = false; $('itHousingAuto').checked = false; });
   onItemField('itHousingAuto', (it, el) => { it.housingAuto = el.checked; });
@@ -1380,7 +1457,8 @@
   });
   $('btnDupItem').addEventListener('click', () => {
     const it = S.items[S.sel]; if (!it) return;
-    const c = { ...it, id: S.nextId++, name: it.name + ' (2)', mask: it.mask.slice(), quad: it.quad.map(p => p.slice()), adj: { ...it.adj }, cx: it.cx + it.w + 10, mips: null, tex: null, texKey: '' };
+    const c = { ...it, id: S.nextId++, name: it.name + ' (2)', mask: it.mask.slice(), quad: it.quad.map(p => p.slice()), adj: { ...it.adj }, cx: it.cx + it.w + 10, mips: null, tex: null, texKey: '',
+      sideLR: it.sideLR ? { quad: it.sideLR.quad.map(p => p.slice()) } : null, sideTB: it.sideTB ? { quad: it.sideTB.quad.map(p => p.slice()) } : null };
     S.items.push(c);
     S.sel = S.items.length - 1;
     adjustItem(c);
@@ -1403,7 +1481,9 @@
 
   function openEditor(it, isNew) {
     E.it = it; E.isNew = isNew;
-    E.backup = { mask: it.mask.slice(), quad: it.quad.map(p => p.slice()), w: it.w, h: it.h, d: it.d, name: it.name };
+    E.backup = { mask: it.mask.slice(), quad: it.quad.map(p => p.slice()), w: it.w, h: it.h, d: it.d, name: it.name,
+      src: it.src, srcCanvas: it.srcCanvas, sideLR: it.sideLR, sideTB: it.sideTB };
+    E.sidePts = null;
     $('editor').classList.remove('hidden');
     $('edName').textContent = it.name;
     $('edNameIn').value = it.name;
@@ -1416,7 +1496,8 @@
   function closeEditor(apply) {
     const it = E.it;
     if (!apply) {
-      Object.assign(it, { mask: E.backup.mask, quad: E.backup.quad, w: E.backup.w, h: E.backup.h, d: E.backup.d, name: E.backup.name });
+      Object.assign(it, { mask: E.backup.mask, quad: E.backup.quad, w: E.backup.w, h: E.backup.h, d: E.backup.d, name: E.backup.name,
+        src: E.backup.src, srcCanvas: E.backup.srcCanvas, sideLR: E.backup.sideLR, sideTB: E.backup.sideTB });
       $('editor').classList.add('hidden');
       E.it = null;
       return;
@@ -1427,6 +1508,8 @@
     if (it.mount === 'surface') it.protrude = it.d; else if (it.mount === 'flush') it.protrude = Math.min(4, it.d);
     it.name = $('edNameIn').value.trim() || it.name;
     it.maskVer = (it.maskVer || 0) + 1;
+    ['sideLR', 'sideTB'].forEach(k => { if (it[k]) it[k] = { quad: it[k].quad }; });
+    if ((it.sideLR || it.sideTB) && !(it.d > 0)) toast('Para usar los laterales indica el fondo del equipo (mm).');
     it.aspectWarn = aspectMessage(it, W, H);
     it.texKey = '';
     makeThumb(it);
@@ -1509,6 +1592,23 @@
       ectx.fillStyle = '#ffcc33'; ectx.font = '700 10px Segoe UI'; ectx.textAlign = 'center';
       ectx.fillText(names[i], p[0], p[1] - 12);
     });
+    const sideCol = { sideLR: '#ff9f43', sideTB: '#d36bff' };
+    ['sideLR', 'sideTB'].forEach(k => {
+      const sd = it[k]; if (!sd) return;
+      const sq = sd.quad.map(edS);
+      ectx.strokeStyle = sideCol[k]; ectx.lineWidth = 2; ectx.setLineDash([5, 3]);
+      ectx.beginPath(); sq.forEach((p, i) => (i ? ectx.lineTo(p[0], p[1]) : ectx.moveTo(p[0], p[1]))); ectx.closePath(); ectx.stroke();
+      ectx.setLineDash([]);
+      // índices 1 y 2 = arista que toca la cara frontal
+      sq.forEach((p, i) => {
+        ectx.fillStyle = sideCol[k]; ectx.beginPath(); ectx.arc(p[0], p[1], 5, 0, Math.PI * 2); ectx.fill();
+        ectx.font = '700 10px Segoe UI'; ectx.textAlign = 'center'; ectx.fillText(i === 1 || i === 2 ? 'F' : 'T', p[0], p[1] - 9);
+      });
+    });
+    if (E.sidePts && E.sidePts.length) {
+      ectx.fillStyle = sideCol[E.mode] || '#fff';
+      E.sidePts.map(edS).forEach(p => { ectx.beginPath(); ectx.arc(p[0], p[1], 5, 0, Math.PI * 2); ectx.fill(); });
+    }
     if ((E.mode === 'erase' || E.mode === 'restore') && E.cursor) {
       ectx.strokeStyle = E.mode === 'erase' ? '#ff5252' : '#4cd964'; ectx.lineWidth = 1.5;
       ectx.beginPath(); ectx.arc(E.cursor[0], E.cursor[1], E.brush, 0, Math.PI * 2); ectx.stroke();
@@ -1517,8 +1617,11 @@
 
   function setEdMode(m) {
     E.mode = m;
+    E.sidePts = m === 'sideLR' || m === 'sideTB' ? [] : null;
+    if (E.sidePts) $('edSideInfo').textContent = 'Haz clic en las 4 esquinas del lateral, en cualquier orden.';
+    else updateSideInfo();
     document.querySelectorAll('.edmode').forEach(b => b.classList.toggle('active', b.dataset.ed === m));
-    edCanvas.style.cursor = m === 'corners' ? 'default' : m === 'wand' ? 'crosshair' : 'none';
+    edCanvas.style.cursor = m === 'corners' ? 'default' : m === 'wand' || E.sidePts ? 'crosshair' : 'none';
   }
   document.querySelectorAll('.edmode').forEach(b => b.addEventListener('click', () => setEdMode(b.dataset.ed)));
 
@@ -1546,7 +1649,21 @@
     if (e.button === 1 || e.button === 2) { E.drag = { type: 'pan', sp, x: E.view.x, y: E.view.y }; return; }
     // las esquinas siempre se pueden arrastrar
     const hi = E.it.quad.findIndex(p => Geo.dist2(edS(p), sp) < 12);
-    if (hi >= 0) { E.drag = { type: 'corner', i: hi }; return; }
+    if (hi >= 0 && !E.sidePts) { E.drag = { type: 'corner', i: hi }; return; }
+    if (!E.sidePts) for (const k of ['sideLR', 'sideTB']) {
+      const sd = E.it[k]; if (!sd) continue;
+      const si = sd.quad.findIndex(p => Geo.dist2(edS(p), sp) < 10);
+      if (si >= 0) { E.drag = { type: 'side', k, i: si }; return; }
+    }
+    if (E.sidePts) {
+      E.sidePts.push(edI(sp));
+      if (E.sidePts.length === 4) {
+        E.it[E.mode] = { quad: orderSide(E.mode, E.sidePts) };
+        setEdMode('corners');
+      }
+      edRedraw(false);
+      return;
+    }
     if (E.mode === 'wand') {
       const p = edI(sp);
       Img.wandRemove(E.it.src.data, E.it.mask, E.it.src.w, E.it.src.h, p[0], p[1], E.tol);
@@ -1568,6 +1685,7 @@
       E.it.quad[d.i] = [Img.clamp(p[0], 0, E.it.src.w), Img.clamp(p[1], 0, E.it.src.h)];
       edRedraw(false); updateAspect();
     } else if (d.type === 'brush') { edBrush(sp, d.last); d.last = sp; edRedraw(true); }
+    else if (d.type === 'side') { const p = edI(sp); E.it[d.k].quad[d.i] = [Img.clamp(p[0], 0, E.it.src.w), Img.clamp(p[1], 0, E.it.src.h)]; edRedraw(false); }
   });
   edCanvas.addEventListener('pointerup', () => {
     if (E.drag && E.drag.type === 'corner') { E.it.quad = Geo.sortQuad(E.it.quad); updateAspect(); edRedraw(false); }
@@ -1593,12 +1711,53 @@
   $('edLargest').addEventListener('click', () => { Img.fillHoles(E.it.mask, E.it.src.w, E.it.src.h); cornersFromMask(); edRedraw(true); });
   $('edReset').addEventListener('click', () => { E.it.mask.fill(255); edRedraw(true); });
   function cornersFromMask() {
-    const it = E.it, bb = Img.maskBBox(it.mask, it.src.w, it.src.h);
-    if (!bb) { toast('El recorte ha eliminado todo. Baja la tolerancia.'); it.mask.fill(255); return; }
-    it.quad = [[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]]];
+    const it = E.it, q = Img.maskQuad(it.mask, it.src.w, it.src.h);
+    if (!q) { toast('El recorte ha eliminado todo. Baja la tolerancia.'); it.mask.fill(255); return; }
+    it.quad = q;
     updateAspect();
   }
+
+  /** Ordena las 4 esquinas de un lateral: la arista más cercana a la cara frontal es la delantera. */
+  function orderSide(kind, pts) {
+    const q = E.it.quad;
+    const segD = (p, a, b) => {
+      const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy || 1;
+      const t = Img.clamp(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L, 0, 1);
+      return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+    };
+    const dq = p => Math.min(...q.map((a, i) => segD(p, a, q[(i + 1) % 4])));
+    const s = pts.slice().sort((a, b) => dq(a) - dq(b));
+    const key = kind === 'sideLR' ? 1 : 0;   // LR: ordenar por y; TB: por x
+    const front = s.slice(0, 2).sort((a, b) => a[key] - b[key]);
+    const back = s.slice(2).sort((a, b) => a[key] - b[key]);
+    return [back[0], front[0], front[1], back[1]];
+  }
+
+  function updateSideInfo() {
+    const it = E.it; if (!it) return;
+    const l = [];
+    if (it.sideLR) l.push('◧ Lateral marcado');
+    if (it.sideTB) l.push('⬒ Cara superior/inferior marcada');
+    $('edSideInfo').textContent = l.length ? l.join(' · ') + '. Se usarán en los dos lados opuestos.' : '';
+  }
+
+  function rotateItemPhoto(dir) {
+    const it = E.it;
+    const r = Img.rotateRGBA(it.src, it.mask, dir);
+    it.src = r.src; it.mask = r.mask;
+    it.quad = Geo.sortQuad(it.quad.map(r.mapPt));
+    ['sideLR', 'sideTB'].forEach(k => { if (it[k]) it[k] = { quad: it[k].quad.map(r.mapPt) }; });
+    const c = Img.makeCanvas(it.src.w, it.src.h);
+    const id = c.getContext('2d').createImageData(it.src.w, it.src.h);
+    id.data.set(it.src.data); c.getContext('2d').putImageData(id, 0, 0);
+    it.srcCanvas = c;
+    edFit(); edRedraw(true); updateAspect();
+  }
   $('edCornersAuto').addEventListener('click', () => { cornersFromMask(); edRedraw(false); });
+  $('edRotL').addEventListener('click', () => rotateItemPhoto(-1));
+  $('edRotR').addEventListener('click', () => rotateItemPhoto(1));
+  $('edFlip').addEventListener('click', () => rotateItemPhoto(0));
+  $('edSidesClear').addEventListener('click', () => { E.it.sideLR = null; E.it.sideTB = null; updateSideInfo(); edRedraw(false); });
   $('edCornersFull').addEventListener('click', () => { const it = E.it; it.quad = [[0, 0], [it.src.w, 0], [it.src.w, it.src.h], [0, it.src.h]]; updateAspect(); edRedraw(false); });
   $('edDone').addEventListener('click', () => closeEditor(true));
   $('edClose').addEventListener('click', () => closeEditor(false));
@@ -1766,7 +1925,8 @@
       items: S.items.map(it => ({
         name: it.name, src: it.srcCanvas.toDataURL('image/jpeg', 0.95), mask: maskToPNG(it.mask, it.src.w, it.src.h),
         quad: it.quad, w: it.w, h: it.h, d: it.d, mount: it.mount, protrude: it.protrude, gap: it.gap,
-        cx: it.cx, cy: it.cy, rot: it.rot, snap: it.snap, housing: it.housing, housingAuto: it.housingAuto, adj: it.adj,
+        cx: it.cx, cy: it.cy, rot: it.rot, snap: it.snap, tiltX: it.tiltX || 0, tiltY: it.tiltY || 0,
+        sideLR: it.sideLR ? { quad: it.sideLR.quad } : null, sideTB: it.sideTB ? { quad: it.sideTB.quad } : null, housing: it.housing, housingAuto: it.housingAuto, adj: it.adj,
       })),
     };
     try { await download(new Blob([JSON.stringify(proj)], { type: 'application/json' }), safeName(proj.title) + '.ivproj.json'); toast('Proyecto guardado.'); }
@@ -1804,7 +1964,7 @@
       mc.getContext('2d').drawImage(mi, 0, 0, it.src.w, it.src.h);
       const md = mc.getContext('2d').getImageData(0, 0, it.src.w, it.src.h).data;
       for (let i = 0; i < it.mask.length; i++) it.mask[i] = md[i * 4];
-      Object.assign(it, { quad: p.quad, w: p.w, h: p.h, d: p.d, mount: p.mount, protrude: p.protrude, gap: p.gap, cx: p.cx, cy: p.cy, rot: p.rot, snap: p.snap, housing: p.housing, housingAuto: p.housingAuto, adj: { ...defaultAdj(), ...p.adj }, placed: true });
+      Object.assign(it, { quad: p.quad, w: p.w, h: p.h, d: p.d, mount: p.mount, protrude: p.protrude, gap: p.gap, cx: p.cx, cy: p.cy, rot: p.rot, snap: p.snap, tiltX: p.tiltX || 0, tiltY: p.tiltY || 0, sideLR: p.sideLR || null, sideTB: p.sideTB || null, housing: p.housing, housingAuto: p.housingAuto, adj: { ...defaultAdj(), ...p.adj }, placed: true });
       it.aspectWarn = aspectMessage(it, it.w, it.h);
       makeThumb(it);
       S.items.push(it);
@@ -1862,5 +2022,5 @@
   setHint('Carga una foto para empezar.');
 
   // API mínima para pruebas automatizadas y depuración
-  window.IV = { S, loadBackground, addItemFromFile, computeH, requestRender, renderFull, computeChecks, closeEditor, adjustItem, setMode, fitView, finishMarking, placeItem };
+  window.IV = { S, E, loadBackground, addItemFromFile, computeH, requestRender, renderFull, computeChecks, closeEditor, adjustItem, setMode, fitView, finishMarking, placeItem };
 })();

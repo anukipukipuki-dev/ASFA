@@ -161,6 +161,11 @@
           <label>Giro (°) <input id="itRot" type="number" step="0.5"></label>
         </div>
         <div class="grid2">
+          <label>Inclinación (°) <input id="itTiltX" type="number" min="-80" max="80" step="1" value="0"></label>
+          <label>Orientación (°) <input id="itTiltY" type="number" min="-80" max="80" step="1" value="0"></label>
+        </div>
+        <p class="small muted">Giro: dentro del plano. Inclinación: + la parte de arriba sale hacia ti. Orientación: + el lado derecho sale hacia fuera. Inclinación y orientación solo se aplican a equipos que sobresalen de la superficie.</p>
+        <div class="grid2">
           <label>Rejilla de ajuste (mm) <input id="itSnap" type="number" min="0" step="0.01" value="0"></label>
           <label>Color carcasa <span class="inline"><input id="itHousing" type="color" value="#3a3d42"><label class="check tiny"><input id="itHousingAuto" type="checkbox" checked> auto</label></span></label>
         </div>
@@ -286,12 +291,24 @@
           <button class="tool edmode" data-ed="restore">🖌 Pincel restaurar</button>
         </div>
         <div class="slider"><label>Pincel <span class="val" id="edBrushVal"></span></label><input id="edBrush" type="range" min="2" max="120" step="1" value="20"></div>
+        <h3>Orientación de la foto</h3>
+        <div class="row">
+          <button id="edRotL" class="ghost" title="Girar 90° a la izquierda">⟲ 90°</button>
+          <button id="edRotR" class="ghost" title="Girar 90° a la derecha">⟳ 90°</button>
+          <button id="edFlip" class="ghost" title="Reflejar en espejo">⇋ Espejo</button>
+        </div>
         <h3>2 · Cara frontal</h3>
-        <p class="small muted">Arrastra los 4 puntos a las esquinas de la <b>cara frontal</b> del equipo. Si la foto tiene perspectiva, la app la endereza.</p>
+        <p class="small muted">Arrastra los 4 puntos a las esquinas de la <b>cara frontal</b> del equipo (SI = superior izquierda). Si la foto está hecha desde un lado o con el equipo girado, la app la endereza y luego la coloca con la perspectiva de la foto base.</p>
         <button class="tool edmode block active" data-ed="corners">⬚ Editar esquinas</button>
         <button id="edCornersAuto" class="ghost block">⤧ Esquinas = contorno del recorte</button>
         <button id="edCornersFull" class="ghost block">▭ Esquinas = foto completa</button>
         <div id="edAspect" class="small"></div>
+        <h3>3 · Laterales (opcional)</h3>
+        <p class="small muted">Si la foto está hecha con perspectiva y se ve un lado del equipo, márcalo (4 esquinas): la app lo endereza y lo usa en 3D en lugar de un color plano. Necesita el fondo (mm).</p>
+        <button class="tool edmode block" data-ed="sideLR">◧ Marcar lateral izquierdo o derecho</button>
+        <button class="tool edmode block" data-ed="sideTB">⬒ Marcar cara superior o inferior</button>
+        <button id="edSidesClear" class="ghost block">Quitar laterales</button>
+        <div id="edSideInfo" class="small muted"></div>
       </div>
       <div class="ed-canvas"><canvas id="edCanvas"></canvas></div>
     </div>

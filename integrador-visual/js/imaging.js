@@ -141,6 +141,72 @@ const Img = (() => {
     return [x0, y0, x1 + 1, y1 + 1];
   }
 
+  /**
+   * Cuadrilátero que mejor encaja con el recorte: el de mayor área inscrito en
+   * la envolvente convexa. Si la foto es frontal (casi un rectángulo alineado),
+   * devuelve la caja envolvente, que respeta mejor las esquinas redondeadas.
+   */
+  function maskQuad(mask, w, h) {
+    const bb = maskBBox(mask, w, h);
+    if (!bb) return null;
+    const pts = [];
+    const st = Math.max(1, Math.round(Math.max(w, h) / 600));
+    for (let y = 0; y < h; y += st) {
+      let x0 = -1, x1 = -1;
+      for (let x = 0; x < w; x++) if (mask[y * w + x] >= 128) { if (x0 < 0) x0 = x; x1 = x; }
+      if (x0 >= 0) { pts.push([x0, y], [x1 + 1, y + st]); }
+    }
+    for (let x = 0; x < w; x += st) {
+      let y0 = -1, y1 = -1;
+      for (let y = 0; y < h; y++) if (mask[y * w + x] >= 128) { if (y0 < 0) y0 = y; y1 = y; }
+      if (y0 >= 0) { pts.push([x, y0], [x + st, y1 + 1]); }
+    }
+    const hull = Geo.convexHull(pts);
+    const n = hull.length;
+    const bbQuad = [[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]]];
+    if (n < 4) return bbQuad;
+    const area = idx => Math.abs(Geo.polyArea(idx.map(i => hull[i])));
+    // arranque: puntos extremos en las 4 diagonales
+    const ext = [p => -p[0] - p[1], p => p[0] - p[1], p => p[0] + p[1], p => -p[0] + p[1]];
+    let idx = ext.map(f => { let b = 0; hull.forEach((p, i) => { if (f(p) > f(hull[b])) b = i; }); return b; });
+    let best = area(idx);
+    for (let it = 0; it < 8; it++) {
+      let improved = false;
+      for (let k = 0; k < 4; k++) {
+        for (let j = 0; j < n; j++) {
+          if (idx.includes(j)) continue;
+          const cand = idx.slice(); cand[k] = j;
+          const q = cand.map(i => hull[i]);
+          if (!Geo.isConvexQuad(Geo.sortQuad(q))) continue;
+          const a = area(cand);
+          if (a > best + 1e-6) { best = a; idx = cand; improved = true; }
+        }
+      }
+      if (!improved) break;
+    }
+    const quad = Geo.sortQuad(idx.map(i => hull[i]));
+    const bbArea = (bb[2] - bb[0]) * (bb[3] - bb[1]);
+    return best / bbArea > 0.965 ? bbQuad : quad;
+  }
+
+  /** Gira 90° (dir=1 horario, -1 antihorario) o refleja (dir=0) un RGBA + máscara. */
+  function rotateRGBA(src, mask, dir) {
+    const { w, h, data } = src;
+    const nw = dir === 0 ? w : h, nh = dir === 0 ? h : w;
+    const out = new Uint8ClampedArray(data.length), om = new Uint8Array(mask.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let nx, ny;
+      if (dir === 1) { nx = h - 1 - y; ny = x; }
+      else if (dir === -1) { nx = y; ny = w - 1 - x; }
+      else { nx = w - 1 - x; ny = y; }
+      const i = y * w + x, j = ny * nw + nx;
+      om[j] = mask[i];
+      out[j * 4] = data[i * 4]; out[j * 4 + 1] = data[i * 4 + 1]; out[j * 4 + 2] = data[i * 4 + 2]; out[j * 4 + 3] = data[i * 4 + 3];
+    }
+    const mapPt = ([x, y]) => dir === 1 ? [h - y, x] : dir === -1 ? [y, w - x] : [w - x, y];
+    return { src: { w: nw, h: nh, data: out }, mask: om, mapPt };
+  }
+
   /* ----------------------------- Desenfoque ------------------------------ */
   function boxBlurChannel(src, dst, w, h, r, stride, off) {
     // horizontal + vertical, radio entero r
@@ -522,7 +588,7 @@ const Img = (() => {
 
   return {
     clamp, lum, makeCanvas, loadImage, imageToCanvas,
-    autoRemoveBackground, wandRemove, keepLargest, fillHoles, maskBBox,
+    autoRemoveBackground, wandRemove, keepLargest, fillHoles, maskBBox, maskQuad, rotateRGBA,
     rectify, regionStats, rgbaStats, patchLum, estimateNoise, adjustTexture, edgeColor,
     buildMips, warpOnto, blurPoly, blurRGBA,
   };

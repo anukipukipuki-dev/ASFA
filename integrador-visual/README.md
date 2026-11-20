@@ -48,16 +48,33 @@ python -m http.server 8000
      calibrada. Sirve para comprobar la calibración con algo que conozcas.
    - Todo debe estar en **la misma superficie** (el mismo plano). En un pupitre con varias
      caras inclinadas, calibra la cara donde irá el equipo.
-3. **Equipos**: añade la foto del equipo. En el editor:
-   - Introduce **ancho, alto y fondo reales** (mm).
-   - Quita el fondo: automático, varita o pincel.
-   - Ajusta las **4 esquinas de la cara frontal**. Si la foto tiene perspectiva, se endereza.
+3. **Equipos**: añade la foto del equipo. **No tiene que estar hecha de frente**: puede tener su
+   propia perspectiva, distinta de la foto base. En el editor:
+   - Introduce el **ancho, alto y fondo reales** (mm).
+   - Quita el fondo con la opción automática, la varita o el pincel.
+   - **Orientación de la foto**: gira 90° o refleja en espejo si hace falta.
+   - **Cara frontal**: ajusta sus 4 esquinas. La detección automática busca el cuadrilátero
+     del recorte; si la foto muestra también un lateral, corrige las esquinas para que solo
+     abarquen el frente. La app **endereza** esa cara (le quita la perspectiva de su foto) y
+     la vuelve a proyectar con la perspectiva de la foto base.
+   - **Laterales (opcional)**: si la foto deja ver un lado o la cara superior, márcalos con
+     4 clics. Se enderezan y se usan en 3D en lugar de un color plano. El lateral marcado
+     sirve para los dos lados opuestos.
    - La app avisa si la proporción de la foto no cuadra con las medidas.
 4. **Coloca** el equipo arrastrándolo (o con las flechas: 1 mm, Mayús: 10 mm). El tamaño
    **no se estira a mano**: lo fija la medida real.
    - Montaje: *empotrado/enrasado* (marco y junta), *sobre superficie* (laterales y sombra
      proyectada) o *rehundido* (paredes interiores del hueco).
    - Rejilla de ajuste: por ejemplo, 44,45 mm para encajar por U en un rack.
+   - **Orientación en 3D** respecto a la superficie:
+     - **Giro**: dentro del plano.
+     - **Inclinación**: positiva, la parte de arriba sale hacia ti (pantalla inclinada
+       hacia el maquinista).
+     - **Orientación**: positiva, el lado derecho sale hacia fuera.
+
+     El equipo gira sobre la arista que queda apoyada, sin atravesar el panel, y se
+     recalculan los laterales, la sombra y la perspectiva. Se aplica a los equipos que
+     sobresalen de la superficie.
 5. **Realismo**: igualación automática con el entorno (exposición, dominante de color,
    nivel de negro), luz local de la foto, grano automático, desenfoque, reflejo de cristal
    para pantallas, y dirección e intensidad de la luz para las sombras.
